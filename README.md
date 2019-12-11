@@ -1,10 +1,10 @@
-# senzing-repository-template
+# poc-csv-tools
 
 This repository contains exemplar artifacts (files) that can be used in other Senzing repositories.
 
 GitHub provides support for these artifacts.  As an example, click on the following links on this GitHub repository:
 
-- "Insights" tab > "[Community](https://github.com/senzing/senzing-repository-template/community)" on left-hand navigation bar
+- "Insights" tab > "[Community](https://github.com/senzing/template-repository/community)" on left-hand navigation bar
 
 ## Files
 
@@ -25,7 +25,7 @@ Consider copy-paste-modifying these files into your Senzing repository:
 ## README.md
 
 Although the file you are reading is a `README.md` file, this isn't the style of `README.md` for most projects.
-Depending upon the type of repository, the following `README.md` templates may be more appropriate:  
+Depending upon the type of repository, the following `README.md` templates may be more appropriate:
 
 1. [README.md](.github/README_TEMPLATE/demonstration/README.md) template for demonstrations. Examples:
     1. [hello-senzing-ibm-node-red/README.md](https://github.com/senzing/hello-senzing-ibm-node-red/blob/master/README.md)
