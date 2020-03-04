@@ -3,7 +3,7 @@
 ## Overview
 
 The csv mapper tools help you map any csv file into json for loading into Senzing.  It contains the following python scripts ...
-- The [csv_analyzer.py](csv_analyzer.py) script reads a csv, accumulating column statistics like percent populated, percent unique and top 5 values.  It even creates a default mapping file to be used by the csv_mapper.
+- The [csv_analyzer.py](csv_analyzer.py) script reads a csv, accumulating column statistics like percent populated, percent unique and top 5 values.  It also creates a default mapping file to be used by the csv_mapper.
 - The [csv_mapper.py](csv_mapper.py) script reads a csv using a mapping file to turn it into senzing json.
 - The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) combine to create a set of functions that can be called by the csv_mapper to convert data.  It contains functions to detect if a name is an organization or a person, standardize dates. etc.  It is expected that you will add your own functions, organization name tokens, etc.
 
@@ -28,7 +28,7 @@ The purpose of this section is to set the csv file delimiter and column headers.
 ## Output Section
 The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ... https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification
 
-Decide on a data source code, entity type and record_id for this data set.  You can hard code values like "TEST" below or refer to csv columns in source input file using the pythonic notation for replacing data in strings "%(<columnName>)s" 
+**Step 1:** Decide on a data source code, entity type and record_id for this data set.  You can hard code values like "TEST" below or refer to csv columns in source input file using the pythonic notation for replacing data in strings "%(columnName)s" 
 ```console
 "outputs": [
     {
@@ -37,7 +37,7 @@ Decide on a data source code, entity type and record_id for this data set.  You 
         "record_id": "<supply>",    <--"%(uniqueid)s" supplied here
         ...
 ```
-Then for each column, replace the attribute tag with the Senzing attribute of your choice.   Please note you can delete any attributes you don't want or add any new attributes you have computed in the calculations section described below.
+**Step 2:** Then for each column, replace the attribute tag with the Senzing attribute of your choice.   Please note you can delete any attributes you don't want or add any new attributes you have computed in the calculations section described below.
 ```console
 {
     "attribute": "<ignore>",    <--GENDER supplied here
