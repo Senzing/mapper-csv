@@ -16,18 +16,50 @@ The majority of it was built with csv_analyzer.py!
 ## Input Section
 The purpose of this section is to set the csv file delimiter and column headers.   
 ```console
-    "input": {
-        "inputFileName": "input/test_set1.csv",
-        "fieldDelimiter": ",",
-        "columnHeaders": [
-            "uniqueid",
-            "name",
-            "gender",
-            ...
+"input": {
+    "inputFileName": "input/test_set1.csv",
+    "fieldDelimiter": ",",
+    "columnHeaders": [
+        "uniqueid",
+        "name",
+        "gender",
+        ...
 ```
-## Input Section
-The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ...
+## Output Section
+The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ... https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification
 
+Decide on a data source code, entity type and record_id for this data set.  You can hard code values like "TEST" below or refer to csv columns in source input file using the pythonic notation for replacing data in strings "%(<columnName>)s" 
+```console
+"outputs": [
+    {
+        "data_source": "<supply>",  <--"TEST" supplied here
+        "entity_type": "<supply>",  <--"%(record_type)s" supplied here
+        "record_id": "<supply>",    <--"%(uniqueid)s" supplied here
+        ...
+```
+Then for each column, replace the attribute tag with the Senzing attribute of your choice.   Please note you can delete any attributes you don't want or add any new attributes you have computed in the calculations section described below.
+```console
+{
+    "attribute": "<ignore>",    <--GENDER supplied here
+    "mapping": "%(gender)s"
+},
+{
+    "attribute": "<ignore>",    <--DATE_OF_BIRTH supplied here
+    "mapping": "%(DOB)s"
+}
+```
+You may notice the statistics section supplied for each column by the csv_analyzer. This is not required by the csv_mapper, but is included to help you decide on the appropriate mapping.  For instance if this field was not populated or did not contain M and F as values, you may want to not map it at all or convert it in the calculations sectrion described below.
+```console
+"statistics": {
+    "columnName": "gender",
+    "populated%": 42.86,
+    "unique%": 66.67,
+    "top5values": [
+        "F (2)",
+        "M (1)"
+    ]
+}
+```
 
 
 
