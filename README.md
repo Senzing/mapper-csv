@@ -9,4 +9,32 @@ The csv mapper tools help you map any csv file into json for loading into Senzin
 
 ## What a mapping file looks like
 
-Review the [mappings/csv_mapper.py](mappings/csv_mapper.py)
+Review the [mappings/test_set1.map](mappings/test_set1.map)
+
+The majority of it was built with csv_analyzer.py!
+
+## Input Section
+The purpose of this section is to set the csv file delimiter and column headers.   
+```console
+    "input": {
+        "inputFileName": "input/test_set1.csv",
+        "fieldDelimiter": ",",
+        "columnHeaders": [
+            "uniqueid",
+            "name",
+            "gender",
+            ...
+```
+## Input Section
+The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ...
+
+
+
+
+
+
+## Calculations Section
+The primary purpose of this section is to set the file type and column headers.   
+```console
+
+```
