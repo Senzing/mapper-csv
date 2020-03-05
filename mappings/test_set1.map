@@ -1,0 +1,228 @@
+{
+    "input": {
+        "inputFileName": "input/test_set1.csv",
+        "fieldDelimiter": ",",
+        "columnHeaders": [
+            "uniqueid",
+            "name",
+            "gender",
+            "dob",
+            "ssn",
+            "dlnum",
+            "proflic",
+            "taxid",
+            "addr1",
+            "city",
+            "state",
+            "zip"
+        ]
+    },
+    "calculations": [
+        {"is_organization": "csv_functions.is_organization_name(rowData['name'])"},
+        {"record_type": "'ORGANIZATION' if rowData['is_organization'] else 'PERSON'"},
+        {"name_org": "rowData['name'] if rowData['is_organization'] else ''"},
+        {"name_full": "rowData['name'] if not rowData['is_organization'] else ''"},
+        {"ref_gender": "rowData['gender'] if rowData['is_organization'] else ''"},
+        {"ref_dob": "rowData['dob'] if rowData['is_organization'] else ''"},
+        {"ref_ssn": "rowData['ssn'] if rowData['is_organization'] else ''"},
+        {"ref_dlnum": "rowData['dlnum'] if rowData['is_organization'] else ''"},
+        {"gender": "rowData['gender'] if not rowData['is_organization'] else ''"},
+        {"dob": "rowData['dob'] if not rowData['is_organization'] else ''"},
+        {"ssn": "rowData['ssn'] if not rowData['is_organization'] else ''"},
+        {"dlnum": "rowData['dlnum'] if not rowData['is_organization'] else ''"}
+    ],
+    "outputs": [
+        {
+            "filter": "not rowData['name']",
+            "data_source": "test",
+            "entity_type": "%(record_type)s",
+            "record_id": "%(uniqueid)s",
+            "attributes": [
+                {
+                    "attribute": "<ignore>",
+                    "mapping": "%(uniqueid)s",
+                    "statistics": {
+                        "columnName": "uniqueid",
+                        "populated%": 100.0,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "1001 (1)",
+                            "1002 (1)",
+                            "1003 (1)",
+                            "1004 (1)",
+                            "1005 (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "<ignore>",
+                    "mapping": "%(name)s",
+                    "statistics": {
+                        "columnName": "name",
+                        "populated%": 85.71,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "ABC Company (1)",
+                            "Bob Jones (1)",
+                            "General Hospital (1)",
+                            "Mary Smith (1)",
+                            "Peter Anderson (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "NAME_ORG",
+                    "mapping": "%(name_org)s"
+                },
+                {
+                    "attribute": "NAME_FULL",
+                    "mapping": "%(name_full)s"
+                },
+                {
+                    "attribute": "RECORD_TYPE",
+                    "mapping": "%(record_type)s"
+                },
+                {
+                    "attribute": "REF_GENDER",
+                    "mapping": "%(ref_gender)s"
+                },
+                {
+                    "attribute": "REF_DOB",
+                    "mapping": "%(ref_dob)s"
+                },
+                {
+                    "attribute": "REF_SSN",
+                    "mapping": "%(ref_ssn)s"
+                },
+                {
+                    "attribute": "REF_DLNUM",
+                    "mapping": "%(ref_dlnum)s"
+                },
+                {
+                    "attribute": "GENDER",
+                    "mapping": "%(gender)s",
+                    "statistics": {
+                        "columnName": "gender",
+                        "populated%": 42.86,
+                        "unique%": 66.67,
+                        "top5values": [
+                            "F (2)",
+                            "M (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "DATE_OF_BIRTH",
+                    "mapping": "%(dob)s",
+                    "statistics": {
+                        "columnName": "dob",
+                        "populated%": 28.57,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "2/2/92 (1)",
+                            "3/3/93 (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "SSN_NUMBER",
+                    "mapping": "%(ssn)s",
+                    "statistics": {
+                        "columnName": "ssn",
+                        "populated%": 28.57,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "2102122 (1)",
+                            "6060016 (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "PROF_LICENSE",
+                    "mapping": "%(proflic)s",
+                    "statistics": {
+                        "columnName": "proflic",
+                        "populated%": 85.71,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "1001011 (1)",
+                            "1002022 (1)",
+                            "1003033 (1)",
+                            "1004044 (1)",
+                            "1005055 (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "TAX_ID_NUMBER",
+                    "mapping": "%(taxid)s",
+                    "statistics": {
+                        "columnName": "taxid",
+                        "populated%": 28.57,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "6060016 (1)",
+                            "700777 (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "ADDR_LINE1",
+                    "mapping": "%(addr1)s",
+                    "statistics": {
+                        "columnName": "addr1",
+                        "populated%": 100.0,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "111 First (1)",
+                            "222 Second (1)",
+                            "333 Third (1)",
+                            "444 Fourth (1)",
+                            "555 Fifth (1)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "ADDR_CITY",
+                    "mapping": "%(city)s",
+                    "statistics": {
+                        "columnName": "city",
+                        "populated%": 100.0,
+                        "unique%": 14.29,
+                        "top5values": [
+                            "Las Vegas (7)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "ADDR_STATE",
+                    "mapping": "%(state)s",
+                    "statistics": {
+                        "columnName": "state",
+                        "populated%": 100.0,
+                        "unique%": 14.29,
+                        "top5values": [
+                            "NV (7)"
+                        ]
+                    }
+                },
+                {
+                    "attribute": "ADDR_POSTAL_CODE",
+                    "mapping": "%(zip)s",
+                    "statistics": {
+                        "columnName": "zip",
+                        "populated%": 100.0,
+                        "unique%": 100.0,
+                        "top5values": [
+                            "89111 (1)",
+                            "89112 (1)",
+                            "89113 (1)",
+                            "89114 (1)",
+                            "89115 (1)"
+                        ]
+                    }
+                }
+            ]
+        }
+    ]
+}
