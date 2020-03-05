@@ -71,11 +71,11 @@
                     }
                 },
                 {
-                    "attribute": "NAME_ORG",
+                    "attribute": "PRIMARY_NAME_ORG",
                     "mapping": "%(name_org)s"
                 },
                 {
-                    "attribute": "NAME_FULL",
+                    "attribute": "PRIMARY_NAME_FULL",
                     "mapping": "%(name_full)s"
                 },
                 {
@@ -167,7 +167,7 @@
                     }
                 },
                 {
-                    "attribute": "ADDR_LINE1",
+                    "attribute": "HOME_ADDR_LINE1",
                     "mapping": "%(addr1)s",
                     "statistics": {
                         "columnName": "addr1",
@@ -183,7 +183,7 @@
                     }
                 },
                 {
-                    "attribute": "ADDR_CITY",
+                    "attribute": "HOME_ADDR_CITY",
                     "mapping": "%(city)s",
                     "statistics": {
                         "columnName": "city",
@@ -195,7 +195,7 @@
                     }
                 },
                 {
-                    "attribute": "ADDR_STATE",
+                    "attribute": "HOME_ADDR_STATE",
                     "mapping": "%(state)s",
                     "statistics": {
                         "columnName": "state",
@@ -207,7 +207,7 @@
                     }
                 },
                 {
-                    "attribute": "ADDR_POSTAL_CODE",
+                    "attribute": "HOME_ADDR_POSTAL_CODE",
                     "mapping": "%(zip)s",
                     "statistics": {
                         "columnName": "zip",
