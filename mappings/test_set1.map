@@ -17,10 +17,25 @@
             "zip"
         ]
     },
+    "calculations": [
+        {"is_organization": "csv_functions.is_organization_name(rowData['name'])"},
+        {"record_type": "'ORGANIZATION' if rowData['is_organization'] else 'PERSON'"},
+        {"name_org": "rowData['name'] if rowData['is_organization'] else ''"},
+        {"name_full": "rowData['name'] if not rowData['is_organization'] else ''"},
+        {"ref_gender": "rowData['gender'] if rowData['is_organization'] else ''"},
+        {"ref_dob": "rowData['dob'] if rowData['is_organization'] else ''"},
+        {"ref_ssn": "rowData['ssn'] if rowData['is_organization'] else ''"},
+        {"ref_dlnum": "rowData['dlnum'] if rowData['is_organization'] else ''"},
+        {"gender": "rowData['gender'] if not rowData['is_organization'] else ''"},
+        {"dob": "rowData['dob'] if not rowData['is_organization'] else ''"},
+        {"ssn": "rowData['ssn'] if not rowData['is_organization'] else ''"},
+        {"dlnum": "rowData['dlnum'] if not rowData['is_organization'] else ''"}
+    ],
     "outputs": [
         {
-            "data_source": "<supply>",
-            "entity_type": "<supply>",
+            "filter": "not rowData['name']",
+            "data_source": "test",
+            "entity_type": "%(record_type)s",
             "record_id": "%(uniqueid)s",
             "attributes": [
                 {
@@ -56,7 +71,35 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "NAME_ORG",
+                    "mapping": "%(name_org)s"
+                },
+                {
+                    "attribute": "NAME_FULL",
+                    "mapping": "%(name_full)s"
+                },
+                {
+                    "attribute": "RECORD_TYPE",
+                    "mapping": "%(record_type)s"
+                },
+                {
+                    "attribute": "REF_GENDER",
+                    "mapping": "%(ref_gender)s"
+                },
+                {
+                    "attribute": "REF_DOB",
+                    "mapping": "%(ref_dob)s"
+                },
+                {
+                    "attribute": "REF_SSN",
+                    "mapping": "%(ref_ssn)s"
+                },
+                {
+                    "attribute": "REF_DLNUM",
+                    "mapping": "%(ref_dlnum)s"
+                },
+                {
+                    "attribute": "GENDER",
                     "mapping": "%(gender)s",
                     "statistics": {
                         "columnName": "gender",
@@ -69,7 +112,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "DATE_OF_BIRTH",
                     "mapping": "%(dob)s",
                     "statistics": {
                         "columnName": "dob",
@@ -82,7 +125,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "SSN_NUMBER",
                     "mapping": "%(ssn)s",
                     "statistics": {
                         "columnName": "ssn",
@@ -95,7 +138,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "PROF_LICENSE",
                     "mapping": "%(proflic)s",
                     "statistics": {
                         "columnName": "proflic",
@@ -111,7 +154,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "TAX_ID_NUMBER",
                     "mapping": "%(taxid)s",
                     "statistics": {
                         "columnName": "taxid",
@@ -124,7 +167,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "ADDR_LINE1",
                     "mapping": "%(addr1)s",
                     "statistics": {
                         "columnName": "addr1",
@@ -140,7 +183,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "ADDR_CITY",
                     "mapping": "%(city)s",
                     "statistics": {
                         "columnName": "city",
@@ -152,7 +195,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "ADDR_STATE",
                     "mapping": "%(state)s",
                     "statistics": {
                         "columnName": "state",
@@ -164,7 +207,7 @@
                     }
                 },
                 {
-                    "attribute": "<ignore>",
+                    "attribute": "ADDR_POSTAL_CODE",
                     "mapping": "%(zip)s",
                     "statistics": {
                         "columnName": "zip",

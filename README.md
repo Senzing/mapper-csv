@@ -15,6 +15,9 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 1. [Tutorial](#typical-use)
     1. [Run the analyzer](#run-the-analyzer)
     1. [Review the statistics](#review-the-statistics)
+    1. [Complete the mapping](#complete-the-mapping)
+    1. [Generate the json file](#generate-the-json-file)
+    1. [Loading into Senzing](#loading-into-senzing)
 1. [Mapping file structure](#mapping-file-structure)
     1. [Input section](#input-section)
     1. [Output section](#output-section)
@@ -27,23 +30,31 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 ### Installation
 
 Place the the following files on a directory of your choice.
-*including the input, mappings and output subdirectories and files for the tutorial*
 
 - [csv_analyzer.py](csv_analyzer.py)
 - [csv_mapper.py](csv_mapper.py)
 - [csv_functions.py](csv_functions.py)
 - [csv_functions.json](csv_functions.json)
-    - [input/test_set1.csv](input/test_set1.csv)
-    - [mappings/test_set1.map](input/test_set1.map)
-    - [output/test_set1.json](input/test_set1.json)
+
+Include the input, mappings and output subdirectories and files for the tutorial@
+
+- [input/test_set1.csv](input/test_set1.csv)
+- [mappings/test_set1.map](input/test_set1.map)
+- [output/test_set1.json](input/test_set1.json)
 
 
 ### Tutorial
+
 Follow these steps in order.  First use the supplied file test_set1.json.  Then try it with one of your own files!
+
 #### Run the analyzer
+
 Execute the csv_analyzer script as follows ...
 ```console
 python csv_analyzer.py -i input/test_set1.csv -o input/test_set1-analysis.csv -m mappings/test_set1.map
+
+Mapping file already exists!!, overwrite it? (Y/N) y       <--this will only occur if you analyze a file twice
+current mapping file renamed to mappings/test_set1.map.bk  <--we will use this file in the tutorial!
 
 Analyzing input/test_set1.csv ...
  8 records processed, complete!
@@ -53,12 +64,17 @@ Writing results to input/test_set1-analysis.csv ...
 process completed!
 ```
 The -i parameter is for the csv file you want to analyze.
+
 The -o parameter is for the name of the file to write the statistics to.  It is a csv file as well.
+
 The -m parameter is for the name of the mapping file to create.  You will later edit this file to map the csv to json.
 
-Note: the csv analyzer attempts to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.  Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
+*Note: the csv analyzer attempts to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.*
+
+Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
 #### Review the results
+
 Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The columns are ...
 - columnName - The name of the column. 
 - recordCount - The number of records with a value in this column.
@@ -66,6 +82,80 @@ Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The 
 - uniqueCount - The number of unique values in this column.
 - uniquePercent - The unique percent (uniqueCount/recordCount).
 - topValue1-5 - The top 5 most used values.  Shows the value with the number of records containing it in parenthesis.
+
+The purpose of this analysis helps you to determine what columns to map in the file.  For instance ...
+- Lets say the gender column seems to contain a data of birth and the date of birth column seems to contain the address line 1. In this case you may want to have the file re-generated as everything seems to have shifted!
+- Lets say you are hoping to to match on ssn plus name. But when you look at the SSN column statistics you find that it is only 10% populated.  In this case you will want to find more values to map.
+- Lets say you want to use the SSN column to match and it is 100% populated. But it is only 10% unique meaning a lot of the records have the same SSN.  This may be ok, but it certainly indicates that you are looking at a list of transactions rather than a list of entities.
+- Lets say you have last_name and first_name columns but the first_names is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
+
+#### Complete the mapping
+The best way to describe how to complete the mapping is review the [Mapping file structure](#mapping-file-structure)
+
+Open the mapping file mappings/test_set1.map with your favorite text editor.
+
+Remember when you ran the analyzer above and saved the current mapping file for this csv to *mappings/test_set1.map.bk*?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.
+
+#### Generate the json file
+
+Execute the csv_mapper script as follows ...
+```console
+python csv_mapper.py -i input/test_set1.csv -m mappings/test_set1.map -o output/test_set1.json
+
+Processing input/test_set1.csv ...
+ 8 rows processed, 1 rows skipped, complete!
+
+OUTPUT #0 ...
+  6 rows written
+  1 rows skipped                                        <--this was due to the empty name filter
+
+ MAPPED ATTRIBUTES:
+  name_org......................          3 50.0 %      <--these are the calculated attributes
+  name_full.....................          3 50.0 %
+  record_type...................          6 100.0 %
+  gender........................          2 33.33 %
+  date_of_birth.................          1 16.67 %
+  ssn_number....................          1 16.67 %
+  tax_id_number.................          1 16.67 %
+  addr_line1....................          6 100.0 %
+  addr_city.....................          6 100.0 %
+  addr_state....................          6 100.0 %
+  addr_postal_code..............          6 100.0 %
+
+ UNMAPPED ATTRIBUTES:
+  ref_gender....................          0 0.0 %
+  ref_dob.......................          1 16.67 %     <--these are the reclassed values for organizations
+  ref_ssn.......................          1 16.67 %
+  ref_dlnum.....................          0 0.0 %
+  prof_license..................          6 100.0 %     <--did you expect this to be a mapped attribute?
+
+ COLUMNS IGNORED: 
+  uniqueid, name                                        <--make sure you didn't intend to map these!
+
+process completed!
+```
+The -i parameter is for the csv file you want to map into json.
+
+The -o parameter is for the name of the json records to.
+
+The -m parameter is for the name of the completed mapping file to use.
+
+You will want to review the statistics it produces and make sure it makes sense to you ... 
+- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.   In this case, it shows that about 1/2 the records were for organizations and half were people.
+- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.  Maybe prof_license should have been named prof_license_number!
+- Should any of the columns ignored be included?
+
+### Loading into Senzing
+
+If you use the G2Loader program to load your data, from the /opt/senzing/g2/python directory ...
+
+```console
+python3 G2Loader.py -f <path-to>/test_set1.json
+```
+
+Please note you could also use the stream loader here ...
+
+*In fact, a future update of this project will send the output directly to a rabbit mq so that yet another file of the data does not have to be created.  Or you could modify this program yourself!*
 
 
 ### Mapping file structure
