@@ -47,7 +47,7 @@ Include the input, mappings and output subdirectories and files for the tutorial
 
 Follow these steps in order.  First use the supplied file test_set1.json.  Then try it with one of your own files!
 
-#### Run the analyzer
+### Run the analyzer
 
 Execute the csv_analyzer script as follows ...
 ```console
@@ -73,7 +73,7 @@ The -m parameter is for the name of the mapping file to create.  You will later 
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
-#### Review the results
+### Review the results
 
 Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The columns are ...
 - columnName - The name of the column. 
@@ -84,19 +84,19 @@ Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The 
 - topValue1-5 - The top 5 most used values.  Shows the value with the number of records containing it in parenthesis.
 
 The purpose of this analysis helps you to determine what columns to map in the file.  For instance ...
-- Lets say the gender column seems to contain a data of birth and the date of birth column seems to contain the address line 1. In this case you may want to have the file re-generated as everything seems to have shifted!
+- Lets say the gender column seems to contain a date of birth and the date of birth column seems to contain the address line 1. In this case you may want to have the file re-generated as everything seems to have shifted!
 - Lets say you are hoping to to match on ssn plus name. But when you look at the SSN column statistics you find that it is only 10% populated.  In this case you will want to find more values to map.
 - Lets say you want to use the SSN column to match and it is 100% populated. But it is only 10% unique meaning a lot of the records have the same SSN.  This may be ok, but it certainly indicates that you are looking at a list of transactions rather than a list of entities.
-- Lets say you have last_name and first_name columns but the first_names is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
+- Lets say you have last_name and first_name columns but the first_name column is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
 
-#### Complete the mapping
+### Complete the mapping
 The best way to describe how to complete the mapping is review the [Mapping file structure](#mapping-file-structure)
 
 Open the mapping file mappings/test_set1.map with your favorite text editor.
 
 Remember when you ran the analyzer above and saved the current mapping file for this csv to *mappings/test_set1.map.bk*?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.
 
-#### Generate the json file
+### Generate the json file
 
 Execute the csv_mapper script as follows ...
 ```console
@@ -147,22 +147,23 @@ You will want to review the statistics it produces and make sure it makes sense 
 
 ### Loading into Senzing
 
+*Please be sure first add any new configurations to Senzing!  This might include new data sources, entity types, features or attributes!.  See the G2ConfigTool.py and readme on the /opt/senzing/g2/python subdirectory.*
+
 If you use the G2Loader program to load your data, from the /opt/senzing/g2/python directory ...
 
 ```console
 python3 G2Loader.py -f <path-to>/test_set1.json
 ```
 
-Please note you could also use the stream loader here ...
+Please note you could also use the stream loader here https://github.com/Senzing/stream-loader
 
 *In fact, a future update of this project will send the output directly to a rabbit mq so that yet another file of the data does not have to be created.  Or you could modify this program yourself!*
-
 
 ### Mapping file structure
 
 Review the [mappings/test_set1.map](mappings/test_set1.map). The majority of it was built by the csv_analyzer.
 
-#### Input section
+### Input section
 The purpose of this section is to set the csv file delimiter and column headers.   
 ```console
 "input": {
@@ -174,7 +175,7 @@ The purpose of this section is to set the csv file delimiter and column headers.
         "gender",
         ...
 ```
-#### Output section
+### Output section
 The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ... https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification
 
 **Step 1:** Decide on a data source code, entity type and record_id for this data set.  You can hard code values like "TEST" below or refer to csv columns in source input file using the pythonic notation for replacing data in strings "%(columnName)s" 
@@ -209,7 +210,7 @@ You may notice the statistics section supplied for each column by the csv_analyz
     ]
 }
 ```
-#### Calculations section
+### Calculations section
 This is where you can transform the data in your csv file. Here you can execute python code to create new columns from old columns.  
 ```console
 "calculations": [
@@ -267,7 +268,7 @@ Finally, notice that these calculated fields were mapped by adding then to the a
     },
     ...
 ```
-#### Multiple mappings and filters
+### Multiple mappings and filters
 Occasionally, you will have a csv file that really contains multiple entities which should be presented to the Senzing engine in separate json messages.  
 ```console
     "outputs": [                                <-- this is a list of output messages
