@@ -71,11 +71,11 @@
                     }
                 },
                 {
-                    "attribute": "NAME_ORG",
+                    "attribute": "PRIMARY_NAME_ORG",
                     "mapping": "%(name_org)s"
                 },
                 {
-                    "attribute": "NAME_FULL",
+                    "attribute": "NAME_FULL_PRIMARY",
                     "mapping": "%(name_full)s"
                 },
                 {
