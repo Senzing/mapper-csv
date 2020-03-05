@@ -345,13 +345,14 @@ if __name__ == "__main__":
         print()
         response = input('Mapping file already exists!!, overwrite it? (Y/N) ')
         if response[0:1].upper() != 'Y':
-            print('Process aborted!')
-            sys.exit(1)
+            mappingFileName = None
+            print('mapping file will be preserved!')
         else:
             mappingFileBackup = mappingFileName + '.bk'
             if os.path.exists(mappingFileBackup):
                 os.remove(mappingFileBackup)
             os.rename(mappingFileName, mappingFileBackup)
+            print('current mapping file renamed to %s' % mappingFileBackup)
 
     result = analyzeFile()
     

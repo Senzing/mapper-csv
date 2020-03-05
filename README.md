@@ -7,11 +7,55 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 - The [csv_mapper.py](csv_mapper.py) script reads a csv using a mapping file to turn it into senzing json.
 - The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) combine to create a set of functions that can be called by the csv_mapper to convert data.  It contains functions to detect if a name is an organization or a person, standardize dates. etc.  It is expected that you will add your own functions, organization name tokens, etc.
 
-## What a mapping file looks like
 
-Review the [mappings/test_set1.map](mappings/test_set1.map). The majority of it was built by the csv_analyzer!
+## Contents
 
-### Input Section
+1. [Prerequisites](#prerequisites)
+1. [Installation](#installation)
+1. [Typical use](#typical-use)
+1. [mapping file structure](#mapping-file-structure)
+1. [Input section](#input-section)
+1. [Output section](#output-section)
+1. [Calculations section](#calculations-section)
+1. [Multiple mappings and filters](#multiple-mappings-and-filters)
+
+### Prerequisites
+- python 3.6 or higher
+
+### Installation
+
+Place the the following files on a directory of your choice ...
+
+- [csv_analyzer.py](csv_analyzer.py)
+- [csv_mapper.py](csv_mapper.py)
+- [csv_functions.py](csv_functions.py)
+- [csv_functions.json](csv_functions.json)
+
+### Typical use
+1. Run the analyzer and review the column statistics
+1. 
+
+
+```console
+python csv_analyzer.py -i input/test_set1.csv -o input/test_set1-analysis.csv -m mappings/test_set1.map
+
+Mapping file already exists!!, overwrite it? (Y/N) y
+current mapping file renamed to mappings/test_set1.map.bk
+
+Analyzing input/test_set1.csv ...
+ 8 records processed, complete!
+
+Writing results to input/test_set1-analysis.csv ...
+
+process completed!
+```
+
+
+### Mapping file structure
+
+Review the [mappings/test_set1.map](mappings/test_set1.map). The majority of it was built by the csv_analyzer.
+
+#### Input section
 The purpose of this section is to set the csv file delimiter and column headers.   
 ```console
 "input": {
@@ -23,7 +67,7 @@ The purpose of this section is to set the csv file delimiter and column headers.
         "gender",
         ...
 ```
-### Output Section
+#### Output section
 The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ... https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification
 
 **Step 1:** Decide on a data source code, entity type and record_id for this data set.  You can hard code values like "TEST" below or refer to csv columns in source input file using the pythonic notation for replacing data in strings "%(columnName)s" 
@@ -58,7 +102,7 @@ You may notice the statistics section supplied for each column by the csv_analyz
     ]
 }
 ```
-### Calculations Section
+#### Calculations section
 This is where you can transform the data in your csv file. Here you can execute python code to create new columns from old columns.  
 ```console
 "calculations": [
@@ -76,9 +120,9 @@ This is where you can transform the data in your csv file. Here you can execute 
     {"dlnum": "rowData['dlnum'] if not rowData['is_organization'] else ''"}
 ],
 ```
-The syntax is {"newcolumnName": "single line of python code"}.  References to current column values use the rowData['columnName'] syntax. These calculations are executed in order which means that all the prior calculation's new column values are available to the later ones.  Notice that the first calculation creates the "is_organization" value that is called by all the ones after it!
+The syntax is {"newcolumnName": "single line of python code"}.  References to current column values use the rowData['columnName'] syntax. These calculations are executed in order which means that all the prior calculation's new column values are available to the later ones.  Notice that the first calculation creates the "is_organization" value that is called by all the ones after it.
 
-If the code you need to execute is more than a single line, create a function for it in the csv_functions.py script.  Notice how the first calculation that creates is_organization calls the approriate csv_function!
+If the code you need to execute is more than a single line, create a function for it in the csv_functions.py script.  Notice how the first calculation that creates is_organization calls the approriate csv_function.
 
 Also notice that this set of calculations ... 
 1. detects whether the name field on the csv record is an organization or not 
@@ -116,7 +160,7 @@ Finally, notice that these calculated fields were mapped by adding then to the a
     },
     ...
 ```
-### Multiple mappings and filters
+#### Multiple mappings and filters
 Occasionally, you will have a csv file that really contains multiple entities which should be presented to the Senzing engine in separate json messages.  
 ```console
     "outputs": [                                <-- this is a list of output messages
