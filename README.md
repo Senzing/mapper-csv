@@ -12,8 +12,9 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 
 1. [Prerequisites](#prerequisites)
 1. [Installation](#installation)
-1. [Typical use](#typical-use)
-1. [mapping file structure](#mapping-file-structure)
+1. [Tutorial](#typical-use)
+    1. Run the analayzer
+1. [Mapping file structure](#mapping-file-structure)
     1. [Input section](#input-section)
     1. [Output section](#output-section)
     1. [Calculations section](#calculations-section)
@@ -24,20 +25,20 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 
 ### Installation
 
-Place the the following files on a directory of your choice including the input, mappings and output subdirectories for the tutorial ...
+Place the the following files on a directory of your choice.
+*including the input, mappings and output subdirectories and files for the tutorial*
 
 - [csv_analyzer.py](csv_analyzer.py)
 - [csv_mapper.py](csv_mapper.py)
 - [csv_functions.py](csv_functions.py)
 - [csv_functions.json](csv_functions.json)
-- [input/test_set1.csv](input/test_set1.csv)
+    - [input/test_set1.csv](input/test_set1.csv)
+    - [mappings/test_set1.map](input/test_set1.map)
+    - [output/test_set1.json](input/test_set1.json)
 
 
-### Typical use
-1. Run the analyzer and review the column statistics
-1. 
-
-
+### Tutorial
+####Run the analyzer and review the column statistics
 ```console
 python csv_analyzer.py -i input/test_set1.csv -o input/test_set1-analysis.csv -m mappings/test_set1.map
 
