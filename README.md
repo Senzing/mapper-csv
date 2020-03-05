@@ -14,22 +14,24 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 1. [Installation](#installation)
 1. [Typical use](#typical-use)
 1. [mapping file structure](#mapping-file-structure)
-1.1 [Input section](#input-section)
-1.1 [Output section](#output-section)
-1.1 [Calculations section](#calculations-section)
-1.1 [Multiple mappings and filters](#multiple-mappings-and-filters)
+    1. [Input section](#input-section)
+    1. [Output section](#output-section)
+    1. [Calculations section](#calculations-section)
+    1. [Multiple mappings and filters](#multiple-mappings-and-filters)
 
 ### Prerequisites
 - python 3.6 or higher
 
 ### Installation
 
-Place the the following files on a directory of your choice ...
+Place the the following files on a directory of your choice including the input, mappings and output subdirectories for the tutorial ...
 
 - [csv_analyzer.py](csv_analyzer.py)
 - [csv_mapper.py](csv_mapper.py)
 - [csv_functions.py](csv_functions.py)
 - [csv_functions.json](csv_functions.json)
+- [input/test_set1.csv](input/test_set1.csv)
+
 
 ### Typical use
 1. Run the analyzer and review the column statistics
