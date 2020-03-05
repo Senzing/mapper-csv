@@ -13,7 +13,8 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 1. [Prerequisites](#prerequisites)
 1. [Installation](#installation)
 1. [Tutorial](#typical-use)
-    1. Run the analayzer
+    1. [Run the analyzer](run-the-analyzer)
+    1. [Review the statistics](review-the-statistics)
 1. [Mapping file structure](#mapping-file-structure)
     1. [Input section](#input-section)
     1. [Output section](#output-section)
@@ -38,12 +39,11 @@ Place the the following files on a directory of your choice.
 
 
 ### Tutorial
-####Run the analyzer and review the column statistics
+Follow these steps in order.  First use the supplied file test_set1.json.  Then try it with one of your own files!
+####Run the analyzer
+Execute the csv_analyzer script as follows ...
 ```console
 python csv_analyzer.py -i input/test_set1.csv -o input/test_set1-analysis.csv -m mappings/test_set1.map
-
-Mapping file already exists!!, overwrite it? (Y/N) y
-current mapping file renamed to mappings/test_set1.map.bk
 
 Analyzing input/test_set1.csv ...
  8 records processed, complete!
@@ -52,6 +52,20 @@ Writing results to input/test_set1-analysis.csv ...
 
 process completed!
 ```
+The -i parameter is for the csv file you want to analyze.
+The -o parameter is for the name of the file to write the statistics to.  It is a csv file as well.
+The -m parameter is for the name of the mapping file to create.  You will later edit this file to map the csv to json.
+
+Note: the csv analyzer attempts to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.  Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
+
+####Review the results
+Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The columns are ...
+- columnName - The name of the column. 
+- recordCount - The number of records with a value in this column.
+- percentPopulated - The percent populated (recordCount/total record count).
+- uniqueCount - The number of unique values in this column.
+- uniquePercent - The unique percent (uniqueCount/recordCount).
+- topValue1-5 - The top 5 most used values.  Shows the value with the number of records containing it in parenthesis.
 
 
 ### Mapping file structure
