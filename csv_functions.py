@@ -31,14 +31,15 @@ class csv_functions():
             return
 
         #--ensure these lists exist
-        if 'GARBAGE_VALUES' not in self.variantJson:
-            self.variantJson['GARBAGE_VALUES'] = []
-        if 'ORGANIZATION_TOKENS' not in self.variantJson:
-            self.variantJson['ORGANIZATION_TOKENS'] = []
-        if 'PERSON_TOKENS' not in self.variantJson:
-            self.variantJson['PERSON_TOKENS'] = []
-        if 'SENZING_ATTRIBUTES' not in self.variantJson:
-            self.variantJson['SENZING_ATTRIBUTES'] = []
+        keys = [
+            "GARBAGE_VALUES", 
+            "ORGANIZATION_TOKENS", 
+            "PERSON_TOKENS", 
+            "SENZING_ATTRIBUTES"
+        ]
+        for key in keys:
+            if key not in self.variantJson:
+                self.variantJson[key] = []
 
         #--turn lists into dictionaries for speed
         self.variantData = {}
@@ -94,9 +95,34 @@ class csv_functions():
     def clean_value(self, valueString):
         #--remove extra spaces
         returnValue = ' '.join(str(valueString).strip().split())
-        if returnValue.upper() in self.variantData['GARBAGE_VALUES']:
+        #--whole field must match a garbage value
+        if returnValue.upper() in self.variantData['GARBAGE_VALUES']: 
             returnValue = ''
         return returnValue
+
+    #-----------------------------------
+    def is_organization_name(self, nameString):
+        if nameString:
+            priorTokens = []
+            for token in nameString.replace('.',' ').replace(',',' ').upper().split():
+                if token in self.variantData['ORGANIZATION_TOKENS'] or \
+                    ' '.join(priorTokens[-2:]) in self.variantData['ORGANIZATION_TOKENS'] or \
+                    ' '.join(priorTokens[-3:]) in self.variantData['ORGANIZATION_TOKENS']:
+                    return True
+                priorTokens.append(token)
+        return False
+
+    #-----------------------------------
+    def is_person_name(self, nameString):
+        if nameString:
+            priorTokens = []
+            for token in nameString.replace('.',' ').replace(',',' ').upper().split():
+                if token in self.variantData['PERSON_TOKENS'] or \
+                    ' '.join(priorTokens[-2:]) in self.variantData['PERSON_TOKENS'] or \
+                    ' '.join(priorTokens[-3:]) in self.variantData['PERSON_TOKENS']:
+                    return True
+                priorTokens.append(token)
+        return False
 
     #-----------------------------------
     def is_senzing_attribute(self, attrName):
@@ -118,23 +144,15 @@ class csv_functions():
         attrName = attrName.upper()
         if attrName in self.variantData['SENZING_ATTRIBUTES']:
             return self.variantData['SENZING_ATTRIBUTES'][attrName]
+        elif '_' in attrName:
+            baseName = attrName[attrName.find('_') + 1:]
+            if baseName in self.variantData['SENZING_ATTRIBUTES']:
+                return self.variantData['SENZING_ATTRIBUTES'][baseName]
+            else:
+                baseName = attrName[0:attrName.rfind('_')]
+                if baseName in self.variantData['SENZING_ATTRIBUTES']:
+                    return self.variantData['SENZING_ATTRIBUTES'][baseName]
         return {}
-
-    #-----------------------------------
-    def is_organization_name(self, nameString):
-        if nameString:
-            for token in nameString.replace('.',' ').replace(',',' ').split():
-                if token.upper() in self.variantData['ORGANIZATION_TOKENS']:
-                    return True
-        return False
-
-    #-----------------------------------
-    def is_person_name(self, nameString):
-        if nameString:
-            for token in nameString.replace('.',' ').replace(',',' ').split():
-                if token.upper() in self.variantData['PERSON_TOKENS']:
-                    return True
-        return False
 
 #----------------------------------------
 if __name__ == "__main__":
