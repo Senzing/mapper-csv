@@ -5,4 +5,5 @@ uniqueid,name,gender,dob,ssn,dlnum,proflic,taxid,addr1,city,state,zip
 1004,Mary Smith,F,,,,1004044,,444 Fourth,Las Vegas,NV,89114
 1005,Peter Anderson,,,,,1005055,,555 Fifth,Las Vegas,NV,89115
 1006,Cleveland Clinic,,,6060016,,1006066,6060016,666 Sixth,Las Vegas,NV,89116
-1007,,F,,,,,700777,777  Seventh,Las Vegas,NV,89117
+1007,,F,,,,,700777,777 Seventh,Las Vegas,NV,89117
+1008,City of Hope,F,,,,,,888 Eighth,Las Vegas,NV,89118
