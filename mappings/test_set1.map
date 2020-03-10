@@ -18,18 +18,16 @@
         ]
     },
     "calculations": [
-        {"is_organization": "csv_functions.is_organization_name(rowData['name'])"},
-        {"record_type": "'ORGANIZATION' if rowData['is_organization'] else 'PERSON'"},
-        {"name_org": "rowData['name'] if rowData['is_organization'] else ''"},
-        {"name_full": "rowData['name'] if not rowData['is_organization'] else ''"},
-        {"ref_gender": "rowData['gender'] if rowData['is_organization'] else ''"},
-        {"ref_dob": "rowData['dob'] if rowData['is_organization'] else ''"},
-        {"ref_ssn": "rowData['ssn'] if rowData['is_organization'] else ''"},
-        {"ref_dlnum": "rowData['dlnum'] if rowData['is_organization'] else ''"},
-        {"gender": "rowData['gender'] if not rowData['is_organization'] else ''"},
-        {"dob": "rowData['dob'] if not rowData['is_organization'] else ''"},
-        {"ssn": "rowData['ssn'] if not rowData['is_organization'] else ''"},
-        {"dlnum": "rowData['dlnum'] if not rowData['is_organization'] else ''"}
+        {"<list>": "csv_functions.parse_name(rowData['name'])"},
+        {"record_type": "'ORGANIZATION' if rowData['IS_ORGANIZATION'] else 'PERSON'"},
+        {"ref_gender": "rowData['gender'] if rowData['IS_ORGANIZATION'] else ''"},
+        {"ref_dob": "rowData['dob'] if rowData['IS_ORGANIZATION'] else ''"},
+        {"ref_ssn": "rowData['ssn'] if rowData['IS_ORGANIZATION'] else ''"},
+        {"ref_dlnum": "rowData['dlnum'] if rowData['IS_ORGANIZATION'] else ''"},
+        {"gender": "rowData['gender'] if not rowData['IS_ORGANIZATION'] else ''"},
+        {"dob": "rowData['dob'] if not rowData['IS_ORGANIZATION'] else ''"},
+        {"ssn": "rowData['ssn'] if not rowData['IS_ORGANIZATION'] else ''"},
+        {"dlnum": "rowData['dlnum'] if not rowData['IS_ORGANIZATION'] else ''"}
     ],
     "outputs": [
         {
@@ -72,11 +70,23 @@
                 },
                 {
                     "attribute": "PRIMARY_NAME_ORG",
-                    "mapping": "%(name_org)s"
+                    "mapping": "%(PRIMARY_NAME_ORG)s"
                 },
                 {
                     "attribute": "PRIMARY_NAME_FULL",
-                    "mapping": "%(name_full)s"
+                    "mapping": "%(PRIMARY_NAME_FULL)s"
+                },
+                {
+                    "attribute": "SECONDARY_NAME_ORG",
+                    "mapping": "%(SECONDARY_NAME_ORG)s"
+                },
+                {
+                    "attribute": "SECONDARY_NAME_FULL",
+                    "mapping": "%(SECONDARY_NAME_FULL)s"
+                },
+                {
+                    "attribute": "REFERENCE_NAME",
+                    "mapping": "%(REFERENCE_NAME)s"
                 },
                 {
                     "attribute": "RECORD_TYPE",

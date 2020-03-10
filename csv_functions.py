@@ -3,8 +3,12 @@ import sys
 import argparse
 import json
 import re
+import random
 from datetime import datetime
 import time
+
+try: import probablepeople as pp
+except: pp = None
 
 #=========================
 class csv_functions():
@@ -35,7 +39,9 @@ class csv_functions():
             "GARBAGE_VALUES", 
             "ORGANIZATION_TOKENS", 
             "PERSON_TOKENS", 
-            "SENZING_ATTRIBUTES"
+            "SENZING_ATTRIBUTES",
+            "NAME_SPLIT_TOKENS",
+            "NAME_ENDER_TOKENS"
         ]
         for key in keys:
             if key not in self.variantJson:
@@ -92,36 +98,153 @@ class csv_functions():
         return None
 
     #-----------------------------------
-    def clean_value(self, valueString):
+    def clean_value(self, attrName, attrValue):
         #--remove extra spaces
-        returnValue = ' '.join(str(valueString).strip().split())
+        newValue = ' '.join(str(attrValue).strip().split())
         #--whole field must match a garbage value
-        if returnValue.upper() in self.variantData['GARBAGE_VALUES']: 
-            returnValue = ''
-        return returnValue
+        if newValue.upper() in self.variantData['GARBAGE_VALUES']: 
+            self.updateStat('GARBAGE_IN_FIELDS', attrName, newValue.upper())
+            return ''
+        return newValue
 
     #-----------------------------------
+    def parse_name(self, nameString):
+        #--notes: clean name has already been done
+        #--       sorry names will be forced upper case
+        #--       returns a dictionary of names
+
+        #--remove in garbage expressions in the string
+        nameString = nameString.upper()
+        for garbageValue in self.variantData['GARBAGE_VALUES']:
+            if garbageValue in nameString:
+                self.updateStat('GARBAGE_IN_NAMES', garbageValue, nameString)
+                nameString = nameString.replace(garbageValue,'').strip()
+        newString = nameString
+
+        primaryNameTokens = []
+        secondaryNameTokens = []
+        referenceNameTokens = []
+
+        #--remove tokens in parenthesis
+        groupedStrings = re.findall('\(.*?\)',newString)
+        for groupedString in groupedStrings:
+            self.updateStat('GROUPED_STRINGS', '()', newString + ' | ' + groupedString)
+            newString = newString.replace(groupedString,'')
+            referenceNameTokens.append(groupedString)
+
+        #--split the name
+        theToken = None
+        split = 0
+        for token in newString.replace('.',' ').replace(',',' ').replace('-',' - ').replace('/',' / ').replace(';',' ; ').upper().split():
+            if split == 1:
+                secondaryNameTokens.append(token)
+            elif split == 2:
+                referenceNameTokens.append(token)
+            elif token in self.variantData['NAME_SPLIT_TOKENS']:
+                #--token is skipped
+                split=1
+                theToken = token
+            elif token in self.variantData['NAME_ENDER_TOKENS']:
+                primaryNameTokens.append(token)
+                split=2
+                theToken = token
+            else:
+                primaryNameTokens.append(token)
+
+        primaryNameStr = ' '.join(primaryNameTokens)
+        secondaryNameStr = ' '.join(secondaryNameTokens)
+        referenceNameStr = ' '.join(referenceNameTokens)
+
+        if secondaryNameStr:
+            self.updateStat('NAME_SPLITERS', theToken, nameString + ' -> ' + primaryNameStr + ' | ' + secondaryNameStr)
+        if referenceNameStr and split == 2:
+            self.updateStat('NAME_ENDERS', theToken, nameString + ' -> ' + primaryNameStr + ' | ' + referenceNameStr)
+
+        #--probable people parser
+        if pp:
+            #--pp.tag(name_str) # expected output: (OrderedDict([('PrefixMarital', 'Mr'), ('GivenName', 'George'), ('Nickname', '"Gob"'), ('Surname', 'Bluth'), ('SuffixGenerational', 'II')]), 'Person')
+            #--pp.tag(corp_str) # expected output: (OrderedDict([('CorporationName', 'Sitwell Housing'), ('CorporationLegalType', 'Inc')]), 'Corporation')
+            #--PrefixMarital
+            #--PrefixOther
+            #--GivenName
+            #--FirstInitial
+            #--MiddleName
+            #--MiddleInitial
+            #--Surname
+            #--LastInitial
+            #--SuffixGenerational
+            #--SuffixOther
+            #--Nickname
+            #--And
+            #--CorporationName
+            #--CorporationNameOrganization
+            #--CorporationLegalType
+            #--CorporationNamePossessiveOf
+            #--ShortForm
+            #--ProxyFor
+            #--AKA
+            try: 
+                taggedName, nameType = pp.tag(primaryNameStr)
+                isOrganization = False if nameType == 'Person' else True
+                self.updateStat('ProbablePeople', nameType, primaryNameStr)
+            except: 
+                isOrganization = self.is_organization_name(primaryNameStr)
+
+        #--home grown parser
+        else:
+            isOrganization = self.is_organization_name(primaryNameStr)
+
+        if isOrganization:
+            primaryNameOrg = primaryNameStr
+            secondaryNameOrg = secondaryNameStr
+            primaryNameFull = ''
+            secondaryNameFull = ''
+        else:    
+            primaryNameOrg = ''
+            secondaryNameOrg = ''
+            primaryNameFull = primaryNameStr
+            secondaryNameFull = secondaryNameStr
+
+        nameList = []
+        nameList.append({'IS_ORGANIZATION': True})
+        nameList.append({'PRIMARY_NAME_ORG': primaryNameOrg})
+        nameList.append({'SECONDARY_NAME_ORG': secondaryNameOrg})
+        nameList.append({'PRIMARY_NAME_FULL': primaryNameFull})
+        nameList.append({'SECONDARY_NAME_FULL': secondaryNameFull})
+        nameList.append({'REFERENCE_NAME': referenceNameStr})
+
+        return nameList
+    
+    #-----------------------------------
     def is_organization_name(self, nameString):
-        if nameString:
-            priorTokens = []
-            for token in nameString.replace('.',' ').replace(',',' ').upper().split():
-                if token in self.variantData['ORGANIZATION_TOKENS'] or \
-                    ' '.join(priorTokens[-2:]) in self.variantData['ORGANIZATION_TOKENS'] or \
-                    ' '.join(priorTokens[-3:]) in self.variantData['ORGANIZATION_TOKENS']:
-                    return True
-                priorTokens.append(token)
+        tokenCnt = 0
+        priorTokens = []
+        for token in nameString.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
+            if token in self.variantData['ORGANIZATION_TOKENS']:
+                self.updateStat('ORGANIZATION_TOKENS', token, nameString)
+                return True
+            elif ' '.join(priorTokens[-2:]) in self.variantData['ORGANIZATION_TOKENS']:
+                self.updateStat('ORGANIZATION_TOKENS', ' '.join(priorTokens[-2:]), nameString)
+                return True
+            elif ' '.join(priorTokens[-3:]) in self.variantData['ORGANIZATION_TOKENS']:
+                self.updateStat('ORGANIZATION_TOKENS', ' '.join(priorTokens[-3:]), nameString)
+                return True
+            priorTokens.append(token)
+            tokenCnt += 1
+        if tokenCnt > 0:
+            self.updateStat('PERSONS_BY_TOKEN_COUNT', tokenCnt, nameString)
+
         return False
 
     #-----------------------------------
     def is_person_name(self, nameString):
-        if nameString:
-            priorTokens = []
-            for token in nameString.replace('.',' ').replace(',',' ').upper().split():
-                if token in self.variantData['PERSON_TOKENS'] or \
-                    ' '.join(priorTokens[-2:]) in self.variantData['PERSON_TOKENS'] or \
-                    ' '.join(priorTokens[-3:]) in self.variantData['PERSON_TOKENS']:
-                    return True
-                priorTokens.append(token)
+        priorTokens = []
+        for token in nameString.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
+            if token in self.variantData['PERSON_TOKENS'] or \
+                ' '.join(priorTokens[-2:]) in self.variantData['PERSON_TOKENS'] or \
+                ' '.join(priorTokens[-3:]) in self.variantData['PERSON_TOKENS']:
+                return True
+            priorTokens.append(token)
         return False
 
     #-----------------------------------
@@ -154,10 +277,29 @@ class csv_functions():
                     return self.variantData['SENZING_ATTRIBUTES'][baseName]
         return {}
 
+    #----------------------------------------
+    def updateStat(self, cat1, cat2, example = None):
+        if cat1 not in self.statPack:
+            self.statPack[cat1] = {}
+        if cat2 not in self.statPack[cat1]:
+            self.statPack[cat1][cat2] = {}
+            self.statPack[cat1][cat2]['count'] = 0
+
+        self.statPack[cat1][cat2]['count'] += 1
+        if example:
+            if 'examples' not in self.statPack[cat1][cat2]:
+                self.statPack[cat1][cat2]['examples'] = []
+            if example not in self.statPack[cat1][cat2]['examples']:
+                if len(self.statPack[cat1][cat2]['examples']) < 100:
+                    self.statPack[cat1][cat2]['examples'].append(example)
+                else:
+                    randomSampleI = random.randint(25,99)
+                    self.statPack[cat1][cat2]['examples'][randomSampleI] = example
+        return
+
 #----------------------------------------
 if __name__ == "__main__":
     appPath = os.path.dirname(os.path.abspath(sys.argv[0]))
-
 
     #--test the instance
     csvFunctions = csv_functions()
