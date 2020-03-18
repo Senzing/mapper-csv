@@ -100,7 +100,7 @@ Remember when you ran the analyzer above and saved the current mapping file for 
 
 Execute the csv_mapper script as follows ...
 ```console
-python csv_mapper.py -i input/test_set1.csv -m mappings/test_set1.map -o output/test_set1.json
+python csv_mapper.py -i input/test_set1.csv -m mappings/test_set1.map -o output/test_set1.json -l output/test_set1-statistics.json
 
 Processing input/test_set1.csv ...
  8 rows processed, 1 rows skipped, complete!
