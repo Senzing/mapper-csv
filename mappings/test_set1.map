@@ -32,7 +32,7 @@
     "outputs": [
         {
             "filter": "not rowData['name']",
-            "data_source": "test",
+            "data_source": "TEST",
             "entity_type": "%(record_type)s",
             "record_id": "%(uniqueid)s",
             "attributes": [

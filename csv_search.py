@@ -7,9 +7,8 @@ import time
 from datetime import datetime, timedelta
 import csv
 import json
-
-try: from csv_functions import csv_functions
-except: csv_functions = None
+import glob
+from csv_functions import csv_functions
 
 #--senzing python classes
 try: 
@@ -46,110 +45,105 @@ def signal_handler(signal, frame):
     return
         
 #----------------------------------------
-def getNextRow(inputFileReader, inputFileHeaders):
-    csvData = None
-    while not csvData:
-        try: 
-            row = next(inputFileReader)
-        except: 
+def getNextRow(fileInfo):
+    errCnt = 0
+    rowData = None
+    while not rowData:
+
+        #--quit for consecutive errors
+        if errCnt >= 10:
+            fileInfo['ERROR'] = 'YES'
+            print()
+            print('Shutdown due to too many errors')
             break
-        else:
-            if row:
-                csvData = dict(zip(inputFileHeaders, row))
+             
+        try: line = next(fileInfo['reader'])
+        except StopIteration:
+            break
+        except: 
+            print(' row %s: %s' % (fileInfo['rowCnt'], sys.exc_info()[0]))
+            fileInfo['skipCnt'] += 1
+            errCnt += 1
+            continue
+        fileInfo['rowCnt'] += 1
+        if line: #--skip empty lines
+
+            #--csv reader will return a list (mult-char delimiter must be manually split)
+            if type(line) == list:
+                row = line
             else:
-                csvData = ','.join(row)
-                print('bad row skipped [%s ...]' % csvData[0:50])
-                continue
-                
-    return csvData
-    
-#----------------------------------------
-def g2Search(g2Engine, jsonStr, searchFlags):
-    try: 
-        response = bytearray()
-        if False: 
-            retcode = g2Engine.searchByAttributes(jsonStr, response)
+                row = [removeQuoteChar(x.strip()) for x in line.split(fileInfo['delimiter'])]
+
+            #--turn into a dictionary if there is a header
+            if 'header' in fileInfo:
+
+                #--column mismatch
+                if len(row) != len(fileInfo['header']):
+                    print(' row %s has %s columns, expected %s' % (fileInfo['rowCnt'], len(row), len(fileInfo['header'])))
+                    fileInfo['skipCnt'] += 1
+                    errCnt += 1
+                    continue
+
+                #--is it the header row
+                elif str(row[0]).upper() == fileInfo['header'][0].upper() and str(row[len(row)-1]).upper() == fileInfo['header'][len(fileInfo['header'])-1].upper():
+                    fileInfo['skipCnt'] += 1
+                    if fileInfo['rowCnt'] != 1:
+                        print(' row %s contains the header' % fileInfo['rowCnt'])
+                        errCnt += 1
+                    continue
+
+                #--return a good row
+                else:
+                    rowData = dict(zip(fileInfo['header'], [str(x).strip() for x in row]))
+
+            else: #--if not just return what should be the header row
+                fileInfo['skipCnt'] += 1
+                rowData = [str(x).strip() for x in row]
+
         else:
-            retcode = g2Engine.searchByAttributesV2(jsonStr, searchFlags, response)
-        response = response.decode() if response else ''
-        #if len(response) > 500:
-        #    print(json.dumps(json.loads(response), indent=4))
-        #    pause()
-    except G2ModuleException as err:
-        print('')
-        print(err)
-        print('')
-        response = '{"EXCEPTION!": "Yes"}'
+            print(' row %s is blank' % fileInfo['rowCnt'])
+            fileInfo['skipCnt'] += 1
+            continue
 
-    return response
-    
+    return fileInfo, rowData
+
 #----------------------------------------
-def dictKeysUpper(dict):
-    return {k.upper():v for k,v in dict.items()}
+def removeQuoteChar(s):
+    if len(s)>2 and s[0] + s[-1] in ("''", '""'):
+        return s[1:-1] 
+    return s 
 
+#----------------------------------------
+def getValue(rowData, expression):
+    try: rtnValue = expression % rowData
+    except: 
+        print('warning: could not map %s' % (expression,)) 
+        rtnValue = ''
+    return rtnValue
+    
 #----------------------------------------
 def processFile():
-    """ search g2 for records in a csv file """
-    print('Processing file ...')
+    global shutDown
     
     #--read the mapping file
     if not os.path.exists(mappingFileName):
+        print()
         print('%s does not exist' % mappingFileName)
         return -1
     
     try: mappingDoc = json.load(open(mappingFileName, 'r'))
     except ValueError as err:
+        print()
         print('mapping file error: %s in %s' % (err, mappingFileName))
         return -1
-    
-    except:
-        print('%s contains invalid json' % mappingFileName)
-        return -1
 
-    #------------------------------------------------
-    #--prepare the input file
-    inputFileName = mappingDoc['input']['fileName']
-    if not os.path.exists(inputFileName):
-        print('%s does not exist' % inputFileName)
-        return -1
-        
-    fileDialect = 'excel'
-    if mappingDoc['input']['fileType'].lower() == 'tab':
-        fileDialect = 'excel-tab'
-    elif mappingDoc['input']['fileType'].lower() == 'pipe':
-        csv.register_dialect('pipe', delimiter = '|', quotechar = '"')
-        fileDialect = 'pipe'
-
-    if 'encoding' in mappingDoc['input']: #--force an encoding
-        inputFileHandle = open(inputFileName, 'r', encoding=mappingDoc['input']['encoding'])
-    else:
-        inputFileHandle = open(inputFileName, 'r')
-    inputFileReader = csv.reader(inputFileHandle, dialect=fileDialect)
-    
-    inputFileHeaders = next(inputFileReader) #--[header.replace(' ','_') for header in next(inputFileReader)]
-    if 'columns' in mappingDoc['input']: #--override column headers
-        if type(mappingDoc['input']['columns']) == list:
-            inputFileHeaders = []
-            for column in mappingDoc['input']['columns']:
-                inputFileHeaders.append(column['name'])
-        else:
-            inputFileHeaders = mappingDoc['input']['columns'].split(',')
-    inputFileHeaders = [header.strip().replace(' ','_').upper() for header in inputFileHeaders]
-        
-    #------------------------------------------------
-    #--prepare the output file
-    mappingDoc['output']['fileType'] = mappingDoc['output']['fileType'].upper()
-
-    #--initialize search flags
-    #--
-    #-- G2_ENTITY_MINIMAL_FORMAT = ( 1 << 18 )
-    #-- G2_ENTITY_BRIEF_FORMAT = ( 1 << 20 )
-    #-- G2_ENTITY_INCLUDE_NO_FEATURES
-    #--
-    #-- G2_EXPORT_INCLUDE_RESOLVED = ( 1 << 2 )
-    #-- G2_EXPORT_INCLUDE_POSSIBLY_SAME = ( 1 << 3 )
-    #--
-    searchFlags = g2Engine.G2_ENTITY_INCLUDE_NO_RELATIONS
+    #--upper case value replacements
+    if 'columnHeaders' in mappingDoc['input']:
+        mappingDoc['input']['columnHeaders'] = [x.upper() for x in mappingDoc['input']['columnHeaders']]
+    for ii in range(len(mappingDoc['search']['attributes'])):
+        mappingDoc['search']['attributes'][ii]['mapping'] = mappingDoc['search']['attributes'][ii]['mapping'].upper().replace(')S', ')s')
+    for ii in range(len(mappingDoc['output']['columns'])):
+        mappingDoc['output']['columns'][ii]['value'] = mappingDoc['output']['columns'][ii]['value'].upper().replace(')S', ')s')
 
     #--build output headers
     recordDataRequested = False
@@ -160,14 +154,23 @@ def processFile():
         outputHeaders.append(columnName)
         if mappingDoc['output']['columns'][ii]['source'].upper() == 'RECORD':
             recordDataRequested = True
+    mappingDoc['output']['outputHeaders'] = outputHeaders
 
     #--use minimal format unless record data requested
+    #--initialize search flags
+    #--
+    #-- G2_ENTITY_MINIMAL_FORMAT = ( 1 << 18 )
+    #-- G2_ENTITY_BRIEF_FORMAT = ( 1 << 20 )
+    #-- G2_ENTITY_INCLUDE_NO_FEATURES
+    #--
+    #-- G2_EXPORT_INCLUDE_RESOLVED = ( 1 << 2 )
+    #-- G2_EXPORT_INCLUDE_POSSIBLY_SAME = ( 1 << 3 )
+    #--
+    searchFlags = g2Engine.G2_ENTITY_INCLUDE_NO_RELATIONS
     if recordDataRequested:
         searchFlags = searchFlags | g2Engine.G2_ENTITY_INCLUDE_NO_FEATURES 
     else:
         searchFlags = searchFlags | g2Engine.G2_ENTITY_MINIMAL_FORMAT 
-
-    mappingDoc['output']['outputHeaders'] = outputHeaders
 
     if 'matchLevelFilter' not in mappingDoc['output'] or int(mappingDoc['output']['matchLevelFilter']) < 1:
         mappingDoc['output']['matchLevelFilter'] = 99
@@ -205,10 +208,10 @@ def processFile():
         mappingDoc['output']['fileWriter'].writerow(outputHeaders)
 
     #--upper case value replacements
-    for ii in range(len(mappingDoc['input']['mappings'])):
-        mappingDoc['input']['mappings'][ii]['value'] = mappingDoc['input']['mappings'][ii]['value'].upper().replace(')S', ')s')
-    for ii in range(len(mappingDoc['output']['columns'])):
-        mappingDoc['output']['columns'][ii]['value'] = mappingDoc['output']['columns'][ii]['value'].upper().replace(')S', ')s')
+    #for ii in range(len(mappingDoc['search']['attributes'])):
+    #    mappingDoc['search']['attributes'][ii]['value'] = mappingDoc['search']['attributes'][ii]['value'].upper().replace(')S', ')s')
+    #for ii in range(len(mappingDoc['output']['columns'])):
+    #    mappingDoc['output']['columns'][ii]['value'] = mappingDoc['output']['columns'][ii]['value'].upper().replace(')S', ')s')
 
     #--initialize the stats
     scoreCounts = {}
@@ -250,331 +253,452 @@ def processFile():
     possiblyRelateds = 0
     nameOnlyMatches = 0
 
-    #------------------------------------------------
-    #--process the rows in the input file
-    batchStartTime = time.time()
-    rowCnt = 0
-    csvData = getNextRow(inputFileReader, inputFileHeaders)
-    while csvData:
-        rowCnt += 1
-        csvData['ROW_ID'] = rowCnt
+    mappingDoc['search']['rowsSearched'] = 0
+    mappingDoc['search']['rowsSkipped'] = 0
+    mappingDoc['search']['mappedList'] = []
+    mappingDoc['search']['unmappedList'] = []
+    mappingDoc['search']['ignoredList'] = []
+    mappingDoc['search']['statistics'] = {}
 
-        #--clean garbage values
-        for key in csvData:
-            try:
-                if csvData[key].upper() in ('NULL', 'NONE', 'N/A', '\\N'):
-                    csvData[key] = ''
-            except: pass
-
-        #--perform calculations
-        mappingErrors = 0
-        if 'calculations' in mappingDoc['input']:
-            for calcDict in mappingDoc['input']['calculations']:
-                try: csvData[calcDict['name']] = eval(calcDict['expression'])
-                except Exception as err: 
-                    print('  error: %s [%s]' % (calcDict['name'], err)) 
-                    mappingErrors += 1
-
-        if args.debug:
-            print('-' * 50)
-            print(csvData)
-
-        #------------------------------------------------
-        #--perform search
-        requiredFieldsMissing = False
-        anyFieldsRequirement = False
-        anyFieldsFound = False
-        searchValues = {}
-        for columnDict in mappingDoc['input']['mappings']:
-            try: columnValue = columnDict['value'] % csvData
-            except: 
-                print('warning: could not find %s' % (columnDict['value'],)) 
-                columnValue = ''
-                
-            if not columnValue or columnValue == 'None':
-                columnValue = ''
-
-            if 'required' in columnDict:
-                if columnDict['required'].upper() == 'YES' and not columnValue:
-                    requiredFieldsMissing = True
-                    break
-                elif columnDict['required'].upper() == 'ANY':
-                    anyFieldsRequirement = True
-                    if columnValue:
-                        anyFieldsFound = True
-                    
-            if columnValue: #--dont write empty tags
-                searchValues[columnDict['name']] = columnValue
-
-        if args.debug: 
-            print(json.dumps(searchValues))
-            
-        searchResult = '{"SEARCH_RESPONSE": {"RESOLVED_ENTITIES": []}}'
-        if anyFieldsRequirement and not anyFieldsFound:
-            requiredFieldsMissing = True
-            if args.debug: 
-                print('required fields were missing!')
-
-        if not requiredFieldsMissing:
-
-            searchResult = g2Search(g2Engine, json.dumps(searchValues), searchFlags)
-            if 'EXCEPTION!' in searchResult:
-                processingError = 1
-                break
-        
-        #------------------------------------------------
-        #--format output
-        jsonResponse = json.loads(searchResult)
-        matchList = []
-        for resolvedEntity in jsonResponse['RESOLVED_ENTITIES']:
-
-            #--create a list of data sources we found them in
-            dataSources = {}
-            for record in resolvedEntity['ENTITY']['RESOLVED_ENTITY']['RECORDS']:
-                dataSource = record['DATA_SOURCE']
-                if dataSource not in dataSources:
-                    dataSources[dataSource] = [record['RECORD_ID']]
-                else:
-                    dataSources[dataSource].append(record['RECORD_ID'])
-
-            dataSourceList = []
-            for dataSource in dataSources:
-                if len(dataSources[dataSource]) == 1:
-                    dataSourceList.append(dataSource + ': ' + dataSources[dataSource][0])
-                else:
-                    dataSourceList.append(dataSource + ': ' + str(len(dataSources[dataSource])) + ' records')
-
-            #--determine the matching criteria
-            matchLevel = int(resolvedEntity['MATCH_INFO']['MATCH_LEVEL'])
-            matchKey = resolvedEntity['MATCH_INFO']['MATCH_KEY'] if resolvedEntity['MATCH_INFO']['MATCH_KEY'] else '' 
-            matchKey = matchKey.replace('+RECORD_TYPE', '')
-
-            scoreData = []
-            bestScores = {}
-            bestScores['NAME'] = {}
-            bestScores['NAME']['score'] = 0
-            bestScores['NAME']['value'] = 'n/a'
-            for featureCode in resolvedEntity['MATCH_INFO']['FEATURE_SCORES']:
-                if featureCode == 'NAME':
-                    scoreCode = 'GNR_FN'
-                else: 
-                    scoreCode = 'FULL_SCORE'
-                for i in range(len(resolvedEntity['MATCH_INFO']['FEATURE_SCORES'][featureCode])):
-                    matchingScore= resolvedEntity['MATCH_INFO']['FEATURE_SCORES'][featureCode][i][scoreCode]
-                    matchingValue = resolvedEntity['MATCH_INFO']['FEATURE_SCORES'][featureCode][i]['CANDIDATE_FEAT']
-                    scoreData.append('%s|%s|%s|%s' % (featureCode, scoreCode, matchingScore, matchingValue))
-                    if featureCode not in bestScores:
-                        bestScores[featureCode] = {}
-                        bestScores[featureCode]['score'] = 0
-                        bestScores[featureCode]['value'] = 'n/a'
-                    if matchingScore > bestScores[featureCode]['score']:
-                        bestScores[featureCode]['score'] = matchingScore
-                        bestScores[featureCode]['value'] = matchingValue
-
-            #--matchScore = str(((5-resolvedEntity['MATCH_INFO']['MATCH_LEVEL']) * 100) + int(resolvedEntity['MATCH_INFO']['MATCH_SCORE'])) + '-' + str(1000+bestScores['NAME']['score'])[-3:]
-            scoreMatrix = {}
-            scoreMatrix['+NAME'] = 80
-            scoreMatrix['+DOB'] = 10
-            scoreMatrix['-DOB'] = -10
-            scoreMatrix['+ISO_COUNTRY'] = 5
-            attrScore = 0
-            for key in scoreMatrix.keys():
-                if key in matchKey:
-                    attrScore += int(round(((scoreMatrix[key] * bestScores[key[1:]]['score']) / 100),0))
-
-            #--create the possible match entity one-line summary
-            matchedEntity = {}
-            matchedEntity['ENTITY_ID'] = resolvedEntity['ENTITY']['RESOLVED_ENTITY']['ENTITY_ID']
-            if 'ENTITY_NAME' in resolvedEntity['ENTITY']['RESOLVED_ENTITY']:
-                matchedEntity['ENTITY_NAME'] = resolvedEntity['ENTITY']['RESOLVED_ENTITY']['ENTITY_NAME'] + (('\n aka: ' + bestScores['NAME']['value']) if bestScores['NAME']['value'] and bestScores['NAME']['value'] != resolvedEntity['ENTITY']['RESOLVED_ENTITY']['ENTITY_NAME'] else '')
-            else:
-                matchedEntity['ENTITY_NAME'] = bestScores['NAME']['value'] if 'NAME' in bestScores else ''
-            matchedEntity['ENTITY_SOURCES'] = '\n'.join(dataSourceList)
-            matchedEntity['MATCH_LEVEL'] = matchLevel
-            matchedEntity['MATCH_KEY'] = matchKey[1:]
-            matchedEntity['MATCH_SCORE'] = attrScore
-            matchedEntity['NAME_SCORE'] = bestScores['NAME']['score']
-            matchedEntity['SCORE_DATA'] = '\n'.join(sorted(map(str, scoreData)))
-
-            if args.debug:
-                print(json.dumps(matchedEntity, indent=4))
-                print()
-            matchedEntity['RECORDS'] = resolvedEntity['ENTITY']['RESOLVED_ENTITY']['RECORDS']
-
-            #--check the output filters
-            filteredOut = False
-            if matchLevel > mappingDoc['output']['matchLevelFilter']:
-                filteredOut = True
-                if args.debug:
-                    print(' ** did not meet matchLevelFilter **')
-            if bestScores['NAME']['score'] < mappingDoc['output']['nameScoreFilter']:
-                filteredOut = True
-                if args.debug:
-                    print(' ** did not meet nameScoreFilter **')
-            if mappingDoc['output']['dataSourceFilter'] and mappingDoc['output']['dataSourceFilter'] not in dataSources:
-                filteredOut = True
-                if args.debug:
-                    print(' ** did not meet dataSourceFiler **')
-            if not filteredOut:
-                matchList.append(matchedEntity)
-
-        #--set the no match condition
-        if len(matchList) == 0:
-            if requiredFieldsMissing:
-                rowsSkipped += 1
-            else:
-                rowsNotMatched += 1
-            matchedEntity = {}
-            matchedEntity['ENTITY_ID'] = 0
-            matchedEntity['ENTITY_NAME'] = ''
-            matchedEntity['ENTITY_SOURCES'] = ''
-            matchedEntity['MATCH_NUMBER'] = 0
-            matchedEntity['MATCH_LEVEL'] = 0
-            matchedEntity['MATCH_KEY'] = ''
-            matchedEntity['MATCH_SCORE'] = ''
-            matchedEntity['NAME_SCORE'] = ''
-            matchedEntity['SCORE_DATA'] = ''
-            matchedEntity['RECORDS'] = []
-            matchList.append(matchedEntity)
-            if args.debug:
-                print(' ** no matches found **')
+    #--ensure uniqueness of attributes, especially if using labels (usage types)
+    errorCnt = 0
+    labelAttrList = []
+    for i1 in range(len(mappingDoc['search']['attributes'])):
+        if mappingDoc['search']['attributes'][i1]['attribute'] == '<ignore>':
+            if 'mapping' in mappingDoc['search']['attributes'][i1]:
+                mappingDoc['search']['ignoredList'].append(mappingDoc['search']['attributes'][i1]['mapping'].replace('%(','').replace(')s',''))
+            continue
+        elif csv_functions.is_senzing_attribute(mappingDoc['search']['attributes'][i1]['attribute']):
+            mappingDoc['search']['mappedList'].append(mappingDoc['search']['attributes'][i1]['attribute'])
         else:
-            rowsMatched += 1
-            
-        #----------------------------------
-        #--create the output rows
-        matchNumber = 0
-        for matchedEntity in sorted(matchList, key=lambda x: x['MATCH_SCORE'], reverse=True):
-            matchNumber += 1
-            matchedEntity['MATCH_NUMBER'] = matchNumber
+            mappingDoc['search']['unmappedList'].append(mappingDoc['search']['attributes'][i1]['attribute'])
+        mappingDoc['search']['statistics'][mappingDoc['search']['attributes'][i1]['attribute']] = 0
 
-            if matchedEntity['MATCH_SCORE']:
-                score = int(matchedEntity['MATCH_SCORE'])
-                level = 'best' if matchNumber == 1 else 'additional'
-                scoreCounts[level]['total'] += 1
-                if score >= 100:
-                    scoreCounts[level]['>=100'] += 1
-                elif score >= 95:
-                    scoreCounts[level]['>=95'] += 1
-                elif score >= 90:
-                    scoreCounts[level]['>=90'] += 1
-                elif score >= 85:
-                    scoreCounts[level]['>=85'] += 1
-                elif score >= 80:
-                    scoreCounts[level]['>=80'] += 1
-                elif score >= 75:
-                    scoreCounts[level]['>=75'] += 1
-                elif score >= 70:
-                    scoreCounts[level]['>=70'] += 1
-                else:
-                    scoreCounts[level]['<70'] += 1
+        if 'label' in mappingDoc['search']['attributes'][i1]:
+            mappingDoc['search']['attributes'][i1]['label_attribute'] = mappingDoc['search']['attributes'][i1]['label'].replace('_', '-') + '_'
+        else:
+            mappingDoc['search']['attributes'][i1]['label_attribute'] = ''
+        mappingDoc['search']['attributes'][i1]['label_attribute'] += mappingDoc['search']['attributes'][i1]['attribute']
+        if mappingDoc['search']['attributes'][i1]['label_attribute'] in labelAttrList:
+            errorCnt += 1
+            print('attribute %s (%s) is duplicated for output %s!' % (i1, mappingDoc['search']['attributes'][i1]['label_attribute'], i))
+        else:
+            labelAttrList.append(mappingDoc['search']['attributes'][i1]['label_attribute'])
 
-            if matchedEntity['NAME_SCORE']:
-                score = int(matchedEntity['NAME_SCORE'])
-                level = 'name'
-                scoreCounts[level]['total'] += 1
-                if score >= 100:
-                    scoreCounts[level]['=100'] += 1
-                elif score >= 95:
-                    scoreCounts[level]['>=95'] += 1
-                elif score >= 90:
-                    scoreCounts[level]['>=90'] += 1
-                elif score >= 85:
-                    scoreCounts[level]['>=85'] += 1
-                elif score >= 80:
-                    scoreCounts[level]['>=80'] += 1
-                elif score >= 75:
-                    scoreCounts[level]['>=75'] += 1
-                elif score >= 70:
-                    scoreCounts[level]['>=70'] += 1
-                else:
-                    scoreCounts[level]['<70'] += 1
+    if errorCnt:
+        return -1
 
-            if matchNumber > mappingDoc['output']['maxReturnCount']:
+    #--override mapping document with parameters
+    if inputFileName or 'inputFileName' not in mappingDoc['input']:
+        mappingDoc['input']['inputFileName'] = inputFileName
+    #if fieldDelimiter or 'fieldDelimiter' not in mappingDoc['input']:
+    #    mappingDoc['input']['fieldDelimiter'] = fieldDelimiter
+    #if fileEncoding or 'fileEncoding' not in mappingDoc['input']:
+    #    mappingDoc['input']['fileEncoding'] = fileEncoding
+    if 'columnHeaders' not in mappingDoc['input']:
+        mappingDoc['input']['columnHeaders'] = []
+
+    #--get the input file
+    if not mappingDoc['input']['inputFileName']:
+        print('')
+        print('no input file supplied')
+        return 1
+    fileList = glob.glob(mappingDoc['input']['inputFileName'])
+    if len(fileList) == 0:
+        print('')
+        print('%s not found' % inputFileName)
+        return 1
+
+    #--for each input file
+    totalRowCnt = 0
+    for fileName in fileList:
+        print('')
+        print('Processing %s ...' % fileName)
+        currentFile = {}
+        currentFile['name'] = fileName
+        currentFile['rowCnt'] = 0
+        currentFile['skipCnt'] = 0
+
+        #--open the file
+        if 'fileEncoding' in mappingDoc['input'] and mappingDoc['input']['fileEncoding']:
+            currentFile['fileEncoding'] = mappingDoc['input']['fileEncoding']
+            currentFile['handle'] = open(fileName, 'r', encoding=mappingDoc['input']['fileEncoding'])
+        else:
+            currentFile['handle'] = open(fileName, 'r')
+
+        #--set the dialect
+        currentFile['fieldDelimiter'] = mappingDoc['input']['fieldDelimiter']
+        if not mappingDoc['input']['fieldDelimiter']:
+            currentFile['csvDialect'] = csv.Sniffer().sniff(currentFile['handle'].readline(), delimiters='|,\t')
+            currentFile['handle'].seek(0)
+            currentFile['fieldDelimiter'] = currentFile['csvDialect'].delimiter
+            mappingDoc['input']['fieldDelimiter'] = currentFile['csvDialect'].delimiter
+        elif mappingDoc['input']['fieldDelimiter'].lower() in ('csv', 'comma', ','):
+            currentFile['csvDialect'] = 'excel'
+        elif mappingDoc['input']['fieldDelimiter'].lower() in ('tab', 'tsv', '\t'):
+            currentFile['csvDialect'] = 'excel-tab'
+        elif mappingDoc['input']['fieldDelimiter'].lower() in ('pipe', '|'):
+            csv.register_dialect('pipe', delimiter = '|', quotechar = '"')
+            currentFile['csvDialect'] = 'pipe'
+        elif len(mappingDoc['input']['fieldDelimiter']) == 1:
+            csv.register_dialect('other', delimiter = delimiter, quotechar = '"')
+            currentFile['csvDialect'] = 'other'
+        elif len(mappingDoc['input']['fieldDelimiter']) > 1:
+            currentFile['csvDialect'] = 'multi'
+        else:
+            currentFile['csvDialect'] = 'excel'
+
+        #--set the reader (csv cannot be used for multi-char delimiters)
+        if currentFile['csvDialect'] != 'multi':
+            currentFile['reader'] = csv.reader(currentFile['handle'], dialect=currentFile['csvDialect'])
+        else:
+            currentFile['reader'] = currentFile['handle']
+
+        #--get the current file header row and use it if not one already
+        currentFile, currentHeaders = getNextRow(currentFile)
+        if not mappingDoc['input']['columnHeaders']:
+            mappingDoc['input']['columnHeaders'] = [x.upper() for x in currentHeaders]
+        currentFile['header'] = mappingDoc['input']['columnHeaders']
+
+        while True:
+            currentFile, rowData = getNextRow(currentFile)
+            if not rowData or shutDown:
                 break
 
-            #--get the column values
-            uppercasedJsonData = False
-            rowValues = []
-            for columnDict in mappingDoc['output']['columns']:
-                columnValue = ''
-                try: 
-                    if columnDict['source'].upper() == 'CSV':
-                        columnValue = columnDict['value'] % csvData
-                    elif columnDict['source'].upper() == 'API':
-                        columnValue = columnDict['value'] % matchedEntity
-                except: 
-                    print('warning: could not find %s' % (columnDict['value'],)) 
+            totalRowCnt += 1
+            rowData['ROW_ID'] = totalRowCnt
 
-                #--comes from the records
-                if columnDict['source'].upper() == 'RECORD':
-                    #if not uppercasedJsonData:
-                    #    record['JSON_DATA'] = dictKeysUpper(record['JSON_DATA'])
-                    #    uppercasedJsonData = True
-                    columnValues = []
-                    for record in matchedEntity['RECORDS']:
-                        if columnDict['value'].upper().endswith('_DATA'):
-                            for item in record[columnDict['value'].upper()]:
-                                if not item.startswith('CK_'):
-                                    columnValues.append(item)
+            #--clean garbage values
+            for key in rowData:
+                rowData[key] = csv_functions.clean_value(key, rowData[key])
+
+            #--perform calculations
+            mappingErrors = 0
+            if 'calculations' in mappingDoc:
+                for calcDict in mappingDoc['calculations']:
+                    try: newValue = eval(list(calcDict.values())[0])
+                    except Exception as err: 
+                        print('  error: %s [%s]' % (list(calcDict.keys())[0], err)) 
+                        mappingErrors += 1
+                    else:
+                        if type(newValue) == list:
+                            for newItem in newValue:
+                                rowData.update(newItem)
                         else:
-                            try: thisValue = columnDict['value'] % record['JSON_DATA']
-                            except: pass
-                            else:
-                                if thisValue and thisValue not in columnValues:
-                                    columnValues.append(thisValue)
-                    if columnValues:
-                        columnValue = '\n'.join(sorted(map(str, columnValues)))
+                            rowData[list(calcDict.keys())[0]] = newValue
 
-                #if args.debug:
-                #    print(columnDict['value'], columnValue)
-                if len(columnValue) > 32000:
-                    columnValue = columnValue[0:32000]
-                    print('column %s truncated at 32k' % columnDict['name'])
-                rowValues.append(columnValue.replace('\n', '|'))
-                        
-            #--write the record
-            if mappingDoc['output']['fileType'] != 'JSON':
-                mappingDoc['output']['fileWriter'].writerow(rowValues)
+            if debugOn:
+                print(json.dumps(rowData, indent=4))
+                pause()
+
+            if 'filter' in mappingDoc['search']:
+                try: skipRow = eval(mappingDoc['search']['filter'])
+                except Exception as err: 
+                    skipRow = False
+                    print(' filter error: %s [%s]' % (mappingDoc['search']['filter'], err))
+                if skipRow:
+                    mappingDoc['search']['rowsSkipped'] += 1
+                    continue
+
+            rootValues = {}
+            subListValues = {}
+            for attrDict in mappingDoc['search']['attributes']:
+                if attrDict['attribute'] == '<ignore>':
+                    continue
+
+                attrValue = getValue(rowData, attrDict['mapping'])
+                if attrValue:
+                    mappingDoc['search']['statistics'][attrDict['attribute']] += 1
+                    if 'subList' in attrDict:
+                        if attrDict['subList'] not in subListValues:
+                            subListValues[attrDict['subList']] = {}
+                        subListValues[attrDict['subList']][attrDict['label_attribute']] = attrValue
+                    else:
+                        rootValues[attrDict['label_attribute']] = attrValue
+
+            #--create the search json
+            jsonData = {}
+            for subList in subListValues:
+                jsonData[subList] = [subListValues[subList]]
+            jsonData.update(rootValues)
+            if debugOn:
+                print(json.dumps(jsonData, indent=4))
+                pause()
+            jsonStr = json.dumps(jsonData)
+
+            #--empty searchResult = '{"SEARCH_RESPONSE": {"RESOLVED_ENTITIES": []}}'???
+            try: 
+                response = bytearray()
+                retcode = g2Engine.searchByAttributesV2(jsonStr, searchFlags, response)
+                response = response.decode() if response else ''
+                #if len(response) > 500:
+                #    print(json.dumps(json.loads(response), indent=4))
+                #    pause()
+            except G2ModuleException as err:
+                print('')
+                print(err)
+                print('')
+                shutDown = True
+                break
+            jsonResponse = json.loads(response)
+
+            matchList = []
+            for resolvedEntity in jsonResponse['RESOLVED_ENTITIES']:
+
+                #--create a list of data sources we found them in
+                dataSources = {}
+                for record in resolvedEntity['ENTITY']['RESOLVED_ENTITY']['RECORDS']:
+                    dataSource = record['DATA_SOURCE']
+                    if dataSource not in dataSources:
+                        dataSources[dataSource] = [record['RECORD_ID']]
+                    else:
+                        dataSources[dataSource].append(record['RECORD_ID'])
+
+                dataSourceList = []
+                for dataSource in dataSources:
+                    if len(dataSources[dataSource]) == 1:
+                        dataSourceList.append(dataSource + ': ' + dataSources[dataSource][0])
+                    else:
+                        dataSourceList.append(dataSource + ': ' + str(len(dataSources[dataSource])) + ' records')
+
+                #--determine the matching criteria
+                matchLevel = int(resolvedEntity['MATCH_INFO']['MATCH_LEVEL'])
+                matchKey = resolvedEntity['MATCH_INFO']['MATCH_KEY'] if resolvedEntity['MATCH_INFO']['MATCH_KEY'] else '' 
+                matchKey = matchKey.replace('+RECORD_TYPE', '')
+
+                scoreData = []
+                bestScores = {}
+                bestScores['NAME'] = {}
+                bestScores['NAME']['score'] = 0
+                bestScores['NAME']['value'] = 'n/a'
+                for featureCode in resolvedEntity['MATCH_INFO']['FEATURE_SCORES']:
+                    if featureCode == 'NAME':
+                        scoreCode = 'GNR_FN'
+                    else: 
+                        scoreCode = 'FULL_SCORE'
+                    for scoreRecord in resolvedEntity['MATCH_INFO']['FEATURE_SCORES'][featureCode]:
+                        matchingScore= scoreRecord[scoreCode]
+                        matchingValue = scoreRecord['CANDIDATE_FEAT']
+                        scoreData.append('%s|%s|%s|%s' % (featureCode, scoreCode, matchingScore, matchingValue))
+                        if featureCode not in bestScores:
+                            bestScores[featureCode] = {}
+                            bestScores[featureCode]['score'] = 0
+                            bestScores[featureCode]['value'] = 'n/a'
+                        if matchingScore > bestScores[featureCode]['score']:
+                            bestScores[featureCode]['score'] = matchingScore
+                            bestScores[featureCode]['value'] = matchingValue
+
+                if debugOn: 
+                    print(json.dumps(bestScores, indent=4))
+
+
+                #--perform scoring (use stored match_score if not overridden in the mapping document)
+                if 'scoring' not in mappingDoc:
+                    matchScore = str(((5-resolvedEntity['MATCH_INFO']['MATCH_LEVEL']) * 100) + int(resolvedEntity['MATCH_INFO']['MATCH_SCORE'])) + '-' + str(1000+bestScores['NAME']['score'])[-3:]
+                else:
+                    matchScore = 0
+                    for featureCode in bestScores:
+                        if featureCode in mappingDoc['scoring']:
+                            if debugOn: 
+                                print(featureCode, mappingDoc['scoring'][featureCode])
+                            if bestScores[featureCode]['score'] >= mappingDoc['scoring'][featureCode]['threshold']:
+                                matchScore += int(round(bestScores[featureCode]['score'] * (mappingDoc['scoring'][featureCode]['+weight'] / 100),0))
+                            elif '-weight' in mappingDoc['scoring'][featureCode]:
+                                matchScore += -mappingDoc['scoring'][featureCode]['-weight'] #--actual score does not matter if below the threshold
+
+                #--create the possible match entity one-line summary
+                matchedEntity = {}
+                matchedEntity['ENTITY_ID'] = resolvedEntity['ENTITY']['RESOLVED_ENTITY']['ENTITY_ID']
+                if 'ENTITY_NAME' in resolvedEntity['ENTITY']['RESOLVED_ENTITY']:
+                    matchedEntity['ENTITY_NAME'] = resolvedEntity['ENTITY']['RESOLVED_ENTITY']['ENTITY_NAME'] + (('\n aka: ' + bestScores['NAME']['value']) if bestScores['NAME']['value'] and bestScores['NAME']['value'] != resolvedEntity['ENTITY']['RESOLVED_ENTITY']['ENTITY_NAME'] else '')
+                else:
+                    matchedEntity['ENTITY_NAME'] = bestScores['NAME']['value'] if 'NAME' in bestScores else ''
+                matchedEntity['ENTITY_SOURCES'] = '\n'.join(dataSourceList)
+                matchedEntity['MATCH_LEVEL'] = matchLevel
+                matchedEntity['MATCH_KEY'] = matchKey[1:]
+                matchedEntity['MATCH_SCORE'] = matchScore
+                matchedEntity['NAME_SCORE'] = bestScores['NAME']['score']
+                matchedEntity['SCORE_DATA'] = '\n'.join(sorted(map(str, scoreData)))
+
+                if debugOn:
+                    print(json.dumps(matchedEntity, indent=4))
+                    pause()
+
+                matchedEntity['RECORDS'] = resolvedEntity['ENTITY']['RESOLVED_ENTITY']['RECORDS']
+
+                #--check the output filters
+                filteredOut = False
+                if matchLevel > mappingDoc['output']['matchLevelFilter']:
+                    filteredOut = True
+                    if debugOn:
+                        print(' ** did not meet matchLevelFilter **')
+                if bestScores['NAME']['score'] < mappingDoc['output']['nameScoreFilter']:
+                    filteredOut = True
+                    if debugOn:
+                        print(' ** did not meet nameScoreFilter **')
+                if mappingDoc['output']['dataSourceFilter'] and mappingDoc['output']['dataSourceFilter'] not in dataSources:
+                    filteredOut = True
+                    if debugOn:
+                        print(' ** did not meet dataSourceFiler **')
+                if not filteredOut:
+                    matchList.append(matchedEntity)
+
+            #--set the no match condition
+            if len(matchList) == 0:
+            #    if requiredFieldsMissing:
+            #        rowsSkipped += 1
+            #    else:
+                rowsNotMatched += 1
+                matchedEntity = {}
+                matchedEntity['ENTITY_ID'] = 0
+                matchedEntity['ENTITY_NAME'] = ''
+                matchedEntity['ENTITY_SOURCES'] = ''
+                matchedEntity['MATCH_NUMBER'] = 0
+                matchedEntity['MATCH_LEVEL'] = 0
+                matchedEntity['MATCH_KEY'] = ''
+                matchedEntity['MATCH_SCORE'] = ''
+                matchedEntity['NAME_SCORE'] = ''
+                matchedEntity['SCORE_DATA'] = ''
+                matchedEntity['RECORDS'] = []
+                matchList.append(matchedEntity)
+                if debugOn:
+                    print(' ** no matches found **')
             else:
-                mappingDoc['output']['fileHandle'].write(json.dumps(rowValues) + '\n')
+                rowsMatched += 1
+                
+            #----------------------------------
+            #--create the output rows
+            matchNumber = 0
+            for matchedEntity in sorted(matchList, key=lambda x: x['MATCH_SCORE'], reverse=True):
+                matchNumber += 1
+                matchedEntity['MATCH_NUMBER'] = matchNumber if matchedEntity['ENTITY_ID'] != 0 else 0
 
-            #--update the counters
-            if matchedEntity['MATCH_LEVEL'] == 1:
-                resolvedMatches += 1
-            elif matchedEntity['MATCH_LEVEL'] == 2:
-                possibleMatches += 1
-            elif matchedEntity['MATCH_LEVEL'] == 3:
-                possiblyRelateds += 1
-            elif matchedEntity['MATCH_LEVEL'] == 4:
-                nameOnlyMatches += 1
-                    
-        if rowCnt % sqlCommitSize == 0:
-            now = datetime.now().strftime('%I:%M%p').lower()
-            elapsedMins = round((time.time() - procStartTime) / 60, 1)
-            eps = int(float(sqlCommitSize) / (float(time.time() - batchStartTime if time.time() - batchStartTime != 0 else 1)))
-            batchStartTime = time.time()
-            print(' %s rows searched at %s, %s per second ... %s rows matched, %s resolved matches, %s possible matches, %s possibly related, %s name only' % (rowCnt, now, eps, rowsMatched, resolvedMatches, possibleMatches, possiblyRelateds, nameOnlyMatches))
+                if matchedEntity['MATCH_SCORE']:
+                    score = int(matchedEntity['MATCH_SCORE'])
+                    level = 'best' if matchNumber == 1 else 'additional'
+                    scoreCounts[level]['total'] += 1
+                    if score >= 100:
+                        scoreCounts[level]['>=100'] += 1
+                    elif score >= 95:
+                        scoreCounts[level]['>=95'] += 1
+                    elif score >= 90:
+                        scoreCounts[level]['>=90'] += 1
+                    elif score >= 85:
+                        scoreCounts[level]['>=85'] += 1
+                    elif score >= 80:
+                        scoreCounts[level]['>=80'] += 1
+                    elif score >= 75:
+                        scoreCounts[level]['>=75'] += 1
+                    elif score >= 70:
+                        scoreCounts[level]['>=70'] += 1
+                    else:
+                        scoreCounts[level]['<70'] += 1
 
-        if args.debug:
-            #print(json.dumps(matchedEntity['RECORDS'], indent=4))
-            pause()
+                if matchedEntity['NAME_SCORE']:
+                    score = int(matchedEntity['NAME_SCORE'])
+                    level = 'name'
+                    scoreCounts[level]['total'] += 1
+                    if score >= 100:
+                        scoreCounts[level]['=100'] += 1
+                    elif score >= 95:
+                        scoreCounts[level]['>=95'] += 1
+                    elif score >= 90:
+                        scoreCounts[level]['>=90'] += 1
+                    elif score >= 85:
+                        scoreCounts[level]['>=85'] += 1
+                    elif score >= 80:
+                        scoreCounts[level]['>=80'] += 1
+                    elif score >= 75:
+                        scoreCounts[level]['>=75'] += 1
+                    elif score >= 70:
+                        scoreCounts[level]['>=70'] += 1
+                    else:
+                        scoreCounts[level]['<70'] += 1
 
-        #--forced shutdown
+                if matchNumber > mappingDoc['output']['maxReturnCount']:
+                    break
+
+                #--get the column values
+                #uppercasedJsonData = False
+                rowValues = []
+                for columnDict in mappingDoc['output']['columns']:
+                    columnValue = ''
+                    try: 
+                        if columnDict['source'].upper() == 'CSV':
+                            columnValue = columnDict['value'] % rowData
+                        elif columnDict['source'].upper() == 'API':
+                            columnValue = columnDict['value'] % matchedEntity
+                    except: 
+                        print('warning: could not find %s in %s' % (columnDict['value'],columnDict['source'].upper())) 
+
+                    #--comes from the records
+                    if columnDict['source'].upper() == 'RECORD':
+                        #if not uppercasedJsonData:
+                        #    record['JSON_DATA'] = dictKeysUpper(record['JSON_DATA'])
+                        #    uppercasedJsonData = True
+                        columnValues = []
+                        for record in matchedEntity['RECORDS']:
+                            if columnDict['value'].upper().endswith('_DATA'):
+                                for item in record[columnDict['value'].upper()]:
+                                    columnValues.append(item)
+                            else:
+                                try: thisValue = columnDict['value'] % record['JSON_DATA']
+                                except: pass
+                                else:
+                                    if thisValue and thisValue not in columnValues:
+                                        columnValues.append(thisValue)
+                        if columnValues:
+                            columnValue = '\n'.join(sorted(map(str, columnValues)))
+
+                    #if debugOn:
+                    #    print(columnDict['value'], columnValue)
+                    if len(columnValue) > 32000:
+                        columnValue = columnValue[0:32000]
+                        print('column %s truncated at 32k' % columnDict['name'])
+                    rowValues.append(columnValue.replace('\n', '|'))
+                            
+                #--write the record
+                if mappingDoc['output']['fileType'] != 'JSON':
+                    mappingDoc['output']['fileWriter'].writerow(rowValues)
+                else:
+                    mappingDoc['output']['fileHandle'].write(json.dumps(rowValues) + '\n')
+
+                #--update the counters
+                if matchedEntity['MATCH_LEVEL'] == 1:
+                    resolvedMatches += 1
+                elif matchedEntity['MATCH_LEVEL'] == 2:
+                    possibleMatches += 1
+                elif matchedEntity['MATCH_LEVEL'] == 3:
+                    possiblyRelateds += 1
+                elif matchedEntity['MATCH_LEVEL'] == 4:
+                    nameOnlyMatches += 1
+                        
+            if totalRowCnt % sqlCommitSize == 0:
+                now = datetime.now().strftime('%I:%M%p').lower()
+                elapsedMins = round((time.time() - procStartTime) / 60, 1)
+                eps = int(float(sqlCommitSize) / (float(time.time() - batchStartTime if time.time() - batchStartTime != 0 else 1)))
+                batchStartTime = time.time()
+                print(' %s rows searched at %s, %s per second ... %s rows matched, %s resolved matches, %s possible matches, %s possibly related, %s name only' % (totalRowCnt, now, eps, rowsMatched, resolvedMatches, possibleMatches, possiblyRelateds, nameOnlyMatches))
+
+            #--break conditions
+            if shutDown:
+                break
+            elif 'ERROR' in currentFile:
+                break
+
+        currentFile['handle'].close()
         if shutDown:
             break
-            
-        #--next record
-        csvData = getNextRow(inputFileReader, inputFileHeaders)
 
+    #--all files completed
     now = datetime.now().strftime('%I:%M%p').lower()
     elapsedMins = round((time.time() - procStartTime) / 60, 1)
     eps = int(float(sqlCommitSize) / (float(time.time() - procStartTime if time.time() - procStartTime != 0 else 1)))
     batchStartTime = time.time()
-    print(' %s rows searched at %s, %s per second ... %s rows matched, %s resolved matches, %s possible matches, %s possibly related, %s name only' % (rowCnt, now, eps, rowsMatched, resolvedMatches, possibleMatches, possiblyRelateds, nameOnlyMatches))
+    print(' %s rows searched at %s, %s per second ... %s rows matched, %s resolved matches, %s possible matches, %s possibly related, %s name only' % (totalRowCnt, now, eps, rowsMatched, resolvedMatches, possibleMatches, possiblyRelateds, nameOnlyMatches))
     print(json.dumps(scoreCounts, indent = 4))    
+
     #--close all inputs and outputs
-    inputFileHandle.close()
     outputFileHandle.close()
 
     return shutDown
@@ -589,30 +713,34 @@ if __name__ == "__main__":
     procStartTime = time.time()
     sqlCommitSize = 100
     
-    #--defaults
-    iniFileName = os.getenv('SENZING_INI_FILE_NAME') if os.getenv('SENZING_INI_FILE_NAME', None) else appPath + os.path.sep + 'G2Module.ini'
-
-    argParser = argparse.ArgumentParser()
-    argParser.add_argument('-c', '--ini_file_name', dest='ini_file_name', default=iniFileName, help='name of the g2.ini file, defaults to %s' % iniFileName)
-    argParser.add_argument('-m', '--mappingFile', dest='mappingFileName', help='the the name of a mapping file')
-    argParser.add_argument('-o', '--outputFileName', dest='outputFileName', help='the name of the output file')
-    argParser.add_argument('-D', '--debug', dest='debug', action='store_true', default=False, help='print debug statements')
-
-    #parser.add_argument('inputFileName', type=str, help='the name of an input file' )
-    args = argParser.parse_args()
-    iniFileName = args.ini_file_name
+    senzingConfigFile = os.getenv('SENZING_CONFIG_FILE') if os.getenv('SENZING_CONFIG_FILE', None) else appPath + os.path.sep + 'G2Module.ini'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--senzingConfigFile', dest='senzingConfigFile', default=senzingConfigFile, help='name of the g2.ini file, defaults to %s' % senzingConfigFile)
+    parser.add_argument('-m', '--mappingFileName', dest='mappingFileName', help='the name of a mapping file')
+    parser.add_argument('-i', '--inputFileName', dest='inputFileName', help='the name of a csv input file')
+    parser.add_argument('-d', '--delimiterChar', dest='delimiterChar', help='delimiter character')
+    parser.add_argument('-e', '--fileEncoding', dest='fileEncoding', help='file encoding')
+    parser.add_argument('-o', '--outputFileName', dest='outputFileName', help='the name of the output file')
+    parser.add_argument('-l', '--log_file', dest='logFileName', help='optional statistics filename (json format).')
+    parser.add_argument('-D', '--debugOn', dest='debugOn', action='store_true', default=False, help='run in debug mode')
+    args = parser.parse_args()
+    senzingConfigFile = args.senzingConfigFile
     mappingFileName = args.mappingFileName
+    inputFileName = args.inputFileName
+    delimiterChar = args.delimiterChar
+    fileEncoding = args.fileEncoding
     outputFileName = args.outputFileName
-    g2debugFlag = args.debug
+    logFileName = args.logFileName
+    debugOn = args.debugOn
 
     #--get parameters from ini file
-    if not os.path.exists(iniFileName):
+    if not os.path.exists(senzingConfigFile):
         print('')
-        print('ini file %s not found!' % iniFileName)
+        print('Senzing config file: %s not found!' % senzingConfigFile)
         print('')
         sys.exit(1)
     iniParser = configparser.ConfigParser()
-    iniParser.read(iniFileName)
+    iniParser.read(senzingConfigFile)
 
     #--use config file if in the ini file, otherwise expect to get from database with config manager lib
     #print(iniParser.get('SQL', 'G2CONFIGFILE'))
@@ -643,7 +771,7 @@ if __name__ == "__main__":
     #--get the config from the config manager
     else:
         iniParamCreator = G2IniParams()
-        iniParams = iniParamCreator.getJsonINIParams(iniFileName)
+        iniParams = iniParamCreator.getJsonINIParams(senzingConfigFile)
         try: 
             g2ConfigMgr = G2ConfigMgr()
             g2ConfigMgr.initV2('pyG2ConfigMgr', iniParams, False)
@@ -671,10 +799,10 @@ if __name__ == "__main__":
     try:
         g2Engine = G2Engine()
         if configTableFile:
-            g2Engine.init('csv_search_viewer', iniFileName, False)
+            g2Engine.init('csv_search_viewer', senzingConfigFile, False)
         else:
             iniParamCreator = G2IniParams()
-            iniParams = iniParamCreator.getJsonINIParams(iniFileName)
+            iniParams = iniParamCreator.getJsonINIParams(senzingConfigFile)
             g2Engine.initV2('csv_search', iniParams, False)
     except G2Exception as err:
         print('')
@@ -684,10 +812,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     #--load the csv functions if available
-    if csv_functions:
-        csv_functions = csv_functions()
-        if not csv_functions.initialized:
-            sys.exit(1)
+    csv_functions = csv_functions()
+    if not csv_functions.initialized:
+        sys.exit(1)
 
     returnCode = processFile()
 

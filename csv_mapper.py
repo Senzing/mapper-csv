@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timedelta
 import json
 import csv
-import glob
+import global
 from csv_functions import csv_functions
 
 #----------------------------------------
@@ -100,13 +100,12 @@ def removeQuoteChar(s):
 def getValue(rowData, expression):
     try: rtnValue = expression % rowData
     except: 
-        print('warning: could not find %s' % (expression,)) 
+        print('warning: could not map %s' % (expression,))
         rtnValue = ''
     return rtnValue
 
 #----------------------------------------
 def processFile():
-    """ map a csv file to senzing """
     global shutDown
 
     #--read the mapping file
