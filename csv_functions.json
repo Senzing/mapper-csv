@@ -1,6 +1,18 @@
 {
     "GARBAGE_VALUES": [
+        "NO LONGER REP",
+        "NO LONGER REP-",
         "NULL"
+    ],
+    "NAME_ENDER_TOKENS": [
+        "/",
+        ";",
+        "INC"
+    ],
+    "NAME_SPLIT_TOKENS": [
+        "AKA",
+        "DBA",
+        "LLCDBA"
     ],
     "ORGANIZATION_TOKENS": [
         "AG",
@@ -23,6 +35,7 @@
         "HOLDINGS",
         "HOSPITAL",
         "INC",
+        "INDUSTRIES",
         "INTERNATIONAL",
         "INVESTMENT",
         "INVESTMENTS",
@@ -30,6 +43,7 @@
         "LTD",
         "NOMINEES",
         "PROPERTIES",
+        "RESTAURANT",
         "SA",
         "SERVICES",
         "THE",

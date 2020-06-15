@@ -3,7 +3,14 @@ uniqueid,name,gender,dob,ssn,dlnum,proflic,taxid,addr1,city,state,zip
 1002,Bob Jones,M,2/2/92,2102122,,1002022,,222 Second,Las Vegas,NV,89112
 1003,General Hospital,,3/3/93,,,1003033,,333 Third,Las Vegas,NV,89113
 1004,Mary Smith,F,,,,1004044,,444 Fourth,Las Vegas,NV,89114
-1005,Peter Anderson,,,,,1005055,,555 Fifth,Las Vegas,NV,89115
+1005,Peter Null Anderson,,,,,1005055,,555 Fifth,Las Vegas,NV,89115
 1006,Cleveland Clinic,,,6060016,,1006066,6060016,666 Sixth,Las Vegas,NV,89116
 1007,,F,,,,,700777,777 Seventh,Las Vegas,NV,89117
 1008,City of Hope,F,,,,,,888 Eighth,Las Vegas,NV,89118
+1009,NLR Jones & Jones,,,,,1009099,,Null,,,
+1010,No Longer Rep-Jones and Jones,,,,,1009099,,,Null,,
+1011,Rideshare Inc Jones,,,,,1011011,,,,null,
+1012,Rideshare Inc Smith,,,,,1011011,,,,,null
+1013,ABC Industries DBA ABC Semiconductor,,,,,1013013,,null,,,
+1014,ABC Industries LLCDBA  ABC Circuit boards,,,,,1013013,,,null,,
+1015,Joe Smith Aka Joey Jones,,,,,1015015,,,,null,

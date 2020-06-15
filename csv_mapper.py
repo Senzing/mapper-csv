@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timedelta
 import json
 import csv
-import glob
+import global
 from csv_functions import csv_functions
 
 #----------------------------------------
@@ -100,13 +100,12 @@ def removeQuoteChar(s):
 def getValue(rowData, expression):
     try: rtnValue = expression % rowData
     except: 
-        print('warning: could not find %s' % (expression,)) 
+        print('warning: could not map %s' % (expression,))
         rtnValue = ''
     return rtnValue
 
 #----------------------------------------
 def processFile():
-    """ map a csv file to senzing """
     global shutDown
 
     #--read the mapping file
@@ -258,19 +257,26 @@ def processFile():
 
             #--clean garbage values
             for key in rowData:
-                rowData[key] = csv_functions.clean_value(rowData[key])
+                rowData[key] = csv_functions.clean_value(key, rowData[key])
 
             #--perform calculations
             mappingErrors = 0
             if 'calculations' in mappingDoc:
                 for calcDict in mappingDoc['calculations']:
-                    try: rowData[list(calcDict.keys())[0]] = eval(list(calcDict.values())[0])
+                    try: newValue = eval(list(calcDict.values())[0])
                     except Exception as err: 
-                        print('  error: %s [%s]' % (calcDict['attribute'], err)) 
+                        print('  error: %s [%s]' % (list(calcDict.keys())[0], err)) 
                         mappingErrors += 1
+                    else:
+                        if type(newValue) == list:
+                            for newItem in newValue:
+                                rowData.update(newItem)
+                        else:
+                            rowData[list(calcDict.keys())[0]] = newValue
 
-            #print(json.dumps(rowData, indent=4))
-            #pause()
+            if debugOn:
+                print(json.dumps(rowData, indent=4))
+                pause()
 
             #--process the record for each output
             for i in range(len(mappingDoc['outputs'])):
@@ -447,6 +453,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--delimiterChar', dest='delimiterChar', help='delimiter character')
     parser.add_argument('-e', '--fileEncoding', dest='fileEncoding', help='file encoding')
     parser.add_argument('-o', '--outputFileName', dest='outputFileName', help='the name of the output file')
+    parser.add_argument('-l', '--log_file', dest='logFileName', help='optional statistics filename (json format).')
     parser.add_argument('-D', '--debugOn', dest='debugOn', action='store_true', default=False, help='run in debug mode')
     args = parser.parse_args()
     mappingFileName = args.mappingFileName
@@ -454,6 +461,7 @@ if __name__ == '__main__':
     delimiterChar = args.delimiterChar
     fileEncoding = args.fileEncoding
     outputFileName = args.outputFileName
+    logFileName = args.logFileName
     debugOn = args.debugOn
 
     #--validations
@@ -469,6 +477,13 @@ if __name__ == '__main__':
         sys.exit(1)
 
     result = processFile()
+
+    if logFileName: 
+        print('')
+        with open(logFileName, 'w') as f:
+            json.dump(csv_functions.statPack, f, indent=4, sort_keys = True)    
+        print('Mapping stats written to %s' % logFileName)
+
 
     print('')
     if result != 0:

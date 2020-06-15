@@ -1,0 +1,260 @@
+{
+  "input": {
+    "inputFileName": "input/test_set1.csv",
+    "fieldDelimiter": ",",
+    "columnHeaders": [
+      "UNIQUEID",
+      "NAME",
+      "GENDER",
+      "DOB",
+      "SSN",
+      "DLNUM",
+      "PROFLIC",
+      "TAXID",
+      "ADDR1",
+      "CITY",
+      "STATE",
+      "ZIP"
+    ]
+  },
+  "calculations": [
+    {
+      "<list>": "csv_functions.parse_name(rowData['NAME'])"
+    }
+  ],
+  "search": {
+    "attributes": [
+      {
+        "attribute": "PRIMARY_NAME_ORG",
+        "mapping" : "%(PRIMARY_NAME_ORG)s"
+      },
+      {
+        "attribute": "PRIMARY_NAME_FULL",
+        "mapping" : "%(PRIMARY_NAME_FULL)s"
+      },
+      {
+        "attribute": "SECONDARY_NAME_ORG",
+        "mapping" : "%(SECONDARY_NAME_ORG)s"
+      },
+      {
+        "attribute": "SECONDARY_NAME_FULL",
+        "mapping" : "%(SECONDARY_NAME_FULL)s"
+      },
+      {
+        "attribute": "GENDER",
+        "mapping" : "%(gender)s"
+      },
+      {
+        "attribute": "DATE_OF_BIRTH",
+        "mapping" : "%(dob)s"
+      },
+      {
+        "attribute": "SSN_NUMBER",
+        "mapping" : "%(ssn)s"
+      },
+      {
+        "attribute": "PROF_LICENSE",
+        "mapping" : "%(proflic)s"
+      },
+      {
+        "attribute": "TAX_ID_NUMBER",
+        "mapping" : "%(taxid)s"
+      },
+      {
+        "attribute": "ADDR_LINE1",
+        "mapping" : "%(addr1)s"
+      },
+      {
+        "attribute": "ADDR_CITY",
+        "mapping" : "%(city)s"
+      },
+      {
+        "attribute": "ADDR_STATE",
+        "mapping" : "%(state)s"
+      },
+      {
+        "attribute": "ADDR_POSTAL_CODE",
+        "mapping" : "%(zip)s"
+      }
+    ]
+  },
+  "scoring": {
+    "NAME": {
+      "threshold": 80,
+      "+weight": 80
+    },
+    "DOB": {
+      "threshold": 85,
+      "+weight": 10,
+      "-weight": 30
+    },
+    "ADDRESS": {
+      "threshold": 80,
+      "+weight": 10
+    },
+    "PHONE": {
+      "threshold": 80,
+      "+weight": 10
+    },
+    "EMAIL": {
+      "threshold": 80,
+      "+weight": 10
+    },
+    "SSN": {
+      "threshold": 90,
+      "+weight": 10,
+      "-weight": 30
+    },
+    "DRLIC": {
+      "threshold": 90,
+      "+weight": 10
+    },
+    "TAX_ID": {
+      "threshold": 90,
+      "+weight": 10
+    }
+  },
+  "output": {
+    "fileType": "csv",
+    "matchLevelFilter": 0,
+    "nameScoreFilter": 0,
+    "maxReturnCount": 10,
+    "columns": [
+      {
+        "name": "row_id",
+        "source": "csv",
+        "value" : "%(row_id)s"
+      },
+      {
+        "name": "uniqueID",
+        "source": "csv",
+        "value" : "%(uniqueID)s"
+      },
+      {
+        "name": "name",
+        "source": "csv",
+        "value" : "%(name)s"
+      },
+      {
+        "name": "gender",
+        "source": "csv",
+        "value" : "%(gender)s"
+      },
+      {
+        "name": "dob",
+        "source": "csv",
+        "value" : "%(dob)s"
+      },
+      {
+        "name": "ssn",
+        "source": "csv",
+        "value" : "%(ssn)s"
+      },
+      {
+        "name": "dlnum",
+        "source": "csv",
+        "value" : "%(dlnum)s"
+      },
+      {
+        "name": "proflic",
+        "source": "csv",
+        "value" : "%(proflic)s"
+      },
+      {
+        "name": "taxid",
+        "source": "csv",
+        "value" : "%(taxid)s"
+      },
+      {
+        "name": "addr1",
+        "source": "csv",
+        "value" : "%(addr1)s"
+      },
+      {
+        "name": "city",
+        "source": "csv",
+        "value" : "%(city)s"
+      },
+      {
+        "name": "state",
+        "source": "csv",
+        "value" : "%(state)s"
+      },
+      {
+        "name": "zip",
+        "source": "csv",
+        "value" : "%(zip)s"
+      },
+      {
+        "name": "match_number",
+        "source": "api",
+        "value" : "%(match_number)s"
+      },
+      {
+        "name": "match_key",
+        "source": "api",
+        "value" : "%(match_key)s"
+      },
+      {
+        "name": "match_score",
+        "source": "api",
+        "value" : "%(match_score)s"
+      },
+      {
+        "name": "name_score",
+        "source": "api",
+        "value" : "%(name_score)s"
+      },
+      {
+        "name": "entity_id",
+        "source": "api",
+        "value" : "%(entity_id)s"
+      },
+      {
+        "name": "entity_name",
+        "source": "api",
+        "value" : "%(entity_name)s"
+      },
+      {
+        "name": "entity_sources",
+        "source": "api",
+        "value" : "%(entity_sources)s"
+      },
+      {
+        "name": "score_data",
+        "source": "api",
+        "value" : "%(score_data)s"
+      },
+      {
+        "name": "name_data",
+        "source": "record",
+        "value" : "NAME_DATA"
+      },
+      {
+        "name": "attribute_data",
+        "source": "record",
+        "value" : "ATTRIBUTE_DATA"
+      },
+      {
+        "name": "identifier_data",
+        "source": "record",
+        "value" : "IDENTIFIER_DATA"
+      },
+      {
+        "name": "address_data",
+        "source": "record",
+        "value" : "ADDRESS_DATA"
+      },
+      {
+        "name": "phone_data",
+        "source": "record",
+        "value" : "PHONE_DATA"
+      },
+      {
+        "name": "other_data",
+        "source": "record",
+        "value" : "OTHER_DATA"
+      }
+    ]
+  }
+}
