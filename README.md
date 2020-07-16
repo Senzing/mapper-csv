@@ -23,10 +23,9 @@ These csv mapping tools help you map any csv file into json for loading into Sen
     1. [Calculations section](#calculations-section)
     1. [Output section](#output-section)
 1. [Python template tutorial](#python-template-tutorial)
-    1. [Input section](#input-section)
-    1. [Output section](#output-section)
-    1. [Calculations section](#calculations-section)
-    1. [Multiple mappings and filters](#multiple-mappings-and-filters)
+    1. [Adding your own functions](#adding-your-own-functions)
+    1. [Updating the mappings](#updating-the-mappings)
+    1. [Unit testing](#unit-testing)
 
 ### Prerequisites
 - python 3.6 or higher
@@ -317,12 +316,14 @@ Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the c
 *Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
 
 
+### Adding your own functions
 
-### Initialization function
+In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
 
+### Updating the mappings
 
+### Unit testing
 
-### Map function
 
 
 
