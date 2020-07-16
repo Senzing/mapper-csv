@@ -18,12 +18,12 @@ These csv mapping tools help you map any csv file into json for loading into Sen
     1. [Input section](#input-section)
     1. [Calculations section](#calculations-section)
     1. [Output section](#output-section)
-    1. [Run the mapper with a mapping file](Run-the-mapper-with-a-mapping-file)
+    1. [Run the mapper with a mapping file](run-the-mapper-with-a-mapping-file)
 1. [Python module tutorial](#python-module-tutorial)
     1. [Adding your own functions](#adding-your-own-functions)
     1. [Updating the mappings](#updating-the-mappings)
     1. [Unit testing](#unit-testing)
-    1. [Run the mapper with a python module](Run-the-mapper-with-a-python-module)
+    1. [Run the mapper with a python module](run-the-mapper-with-a-python-module)
 1. [Loading into Senzing](#loading-into-senzing)
 
 ### Prerequisites
