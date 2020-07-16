@@ -26,8 +26,7 @@ class mapper():
             return None
 
         #--place any calculations needed here
-        is_organization = self.is_organization_name(raw_data['name'])
-
+        is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
 
         #--mandatory attributes
         new_data['DATA_SOURCE'] = 'TEST'
@@ -181,27 +180,29 @@ class mapper():
         return new_value
 
     #----------------------------------------
-    def format_date(self, date_string, output_format = None):
+    def format_date(self, raw_date, output_format = None):
         for date_format in self.date_formats:
-            try: date_value = datetime.strptime(date_string, date_format)
+            try: new_date = datetime.strptime(raw_date, date_format)
             except: pass
             else: 
                 if not output_format:
-                    if len(date_string) == 4:
+                    if len(raw_date) == 4:
                         output_format = '%Y'
-                    elif len(date_string) in (5,6):
+                    elif len(raw_date) in (5,6):
                         output_format = '%m-%d'
-                    elif len(date_string) in (7,8):
+                    elif len(raw_date) in (7,8):
                         output_format = '%Y-%m'
                     else:
                         output_format = '%Y-%m-%d'
-                return datetime.strftime(date_value, output_format)
+                return datetime.strftime(new_date, output_format)
         return ''
 
     #-----------------------------------
-    def is_organization_name(self, name_string):
+    def is_organization(self, raw_name, raw_dob, raw_ssn):
+        if raw_dob or raw_ssn or not raw_name:
+            return False
         prior_tokens = []
-        for token in name_string.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
+        for token in raw_name.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
             if token in self.variant_data['ORGANIZATION_TOKENS']:
                 return True
             elif ' '.join(prior_tokens[-2:]) in self.variant_data['ORGANIZATION_TOKENS']:
@@ -218,10 +219,24 @@ if __name__ == "__main__":
     test_mapper = mapper()
 
     print('\nmap function result ...')
-    test_result = test_mapper.map({"COLUMN1": "100", "COLUMN2": "NULL", "COLUMN3": "NAME"})
-    print('\n' + json.dumps(test_result))
+    raw_data = {}
+    raw_data["uniqueid"] = "1001"
+    raw_data["type"] = "company"
+    raw_data["name"] = "ABC Company"
+    raw_data["gender"] = "u"
+    raw_data["dob"] = ""
+    raw_data["ssn"] = "null"
+    raw_data["addr1"] = "111 First"
+    raw_data["city"] = "Las Vegas"
+    raw_data["state"] = "NV"
+    raw_data["zip"] = "89111"
+    raw_data["create_date"] = "1/1/01"
+    raw_data["status"] = "Active"
+    raw_data["value"] = "1000"
+    test_result = test_mapper.map(raw_data)
+    print('\n' + json.dumps(test_result, indent=4))
 
-    print('\nclean value tests ...')
+    print('\nclean_value tests ...')
     tests = []
     tests.append(['ABC    COMPANY', 'ABC COMPANY'])
     tests.append([' n/a', ''])
@@ -233,7 +248,7 @@ if __name__ == "__main__":
         else:
             print('\t%s [%s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], result))
 
-    print('\nformat date tests ...')
+    print('\nformat_date tests ...')
     tests = []
     tests.append(['11/12/1927', '1927-11-12'])
     tests.append(['01-2027', '2027-01'])
@@ -245,6 +260,19 @@ if __name__ == "__main__":
             print('\t%s [%s] -> [%s]' % ('pass', test[0], test[1]))
         else:
             print('\t%s [%s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], result))
+
+    print('\nis_organization tests ...')
+    tests = []
+    tests.append(['Joe Smith', '', '', 'No'])
+    tests.append(['ABC Company', '','', 'Yes'])
+    tests.append(['Joe Company', '1/12/2001','', 'No'])
+    tests.append([None, None, None, 'No'])
+    for test in tests:
+        result = 'Yes' if test_mapper.is_organization(test[0], test[1], test[2]) else 'No'
+        if result == test[3]:
+            print('\t%s [%s, %s, %s] -> [%s]' % ('pass', test[0], test[1], test[2], test[3]))
+        else:
+            print('\t%s [%s, %s, %s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], test[2], test[3], result))
 
 
     print ('\ntests complete\n')
