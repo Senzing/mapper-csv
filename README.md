@@ -40,7 +40,7 @@ Place the the following files on a directory of your choice.
 - [csv_functions.py](csv_functions.py)
 - [csv_functions.json](csv_functions.json)
 - [csv_functions.json](csv_functions.json)
-- [mapper_template.py](mapper_template.py)
+- [python_template.py](python_template.py)
 
 Include the input, mappings and output subdirectories and files for the tutorial
 
