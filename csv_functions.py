@@ -216,6 +216,16 @@ class csv_functions():
 
         return nameList
     
+
+    #-----------------------------------
+    def parse_provider_column(self, _str):
+        if len(str(_str).strip()) == 0:
+            return ''
+        #example input: PHA410230, PHA393440, 1821137118
+        #example ouput: "NPI_NUMBERS": [{"NPI_NUMBER": "PHA410230"}, {"NPI_NUMBER": "PHA393440"}, {"NPI_NUMBER": "1821137118"}]
+        numberList = [{"NPI_NUMBER": x.strip()} for x in _str.split(',')]
+        return numberList
+
     #-----------------------------------
     def is_organization_name(self, nameString):
         tokenCnt = 0
