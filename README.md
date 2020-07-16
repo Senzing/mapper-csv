@@ -45,9 +45,9 @@ Place the the following files on a directory of your choice.
 Include the input, mappings and output subdirectories and files for the tutorial
 
 - [input/test_set1.csv](input/test_set1.csv)
-- [mappings/test_set1.map](input/test_set1.map)
-- [mappings/test_set1.py](input/test_set1.py)
-- [output/test_set1.json](input/test_set1.json)
+- [mappings/test_set1.map](mappings/test_set1.map)
+- [mappings/test_set1.py](mappings/test_set1.py)
+- [output/test_set1.json](output/test_set1.json)
 
 ### Tutorial
 
