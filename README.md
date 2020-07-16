@@ -57,14 +57,20 @@ Follow these steps in order.  First use the supplied file test_set1.csv.  Then t
 
 Execute the csv_analyzer script as follows ...
 ```console
-python csv_analyzer.py -i input/test_set1.csv -o input/test_set1-analysis.csv -m mappings/test_set1.map -p mappings/test_set1.py
+python csv_analyzer.py \
+  -i input/test_set1.csv \
+  -o input/test_set1-analysis.csv \
+  -m mappings/test_set1.map \
+  -p mappings/test_set1.py
 ```
 - The -i parameter is for the csv file you want to analyze.
 - The -o parameter is for the name of the file to write the statistics to.  It is a csv file as well.
 - The -m parameter is for the name of the mapping file to create.  You will later edit this file to map the csv to json using this method.
 - The -p parameter is for the name of the python module file to create.  You will later edit this file to map the csv to json using this method.
 
-*Note: The csv analyzer attempts to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.*
+*Note: The csv analyzer use the csv module sniffer to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.*
+- The -d parameter can be used to set the csv column delimiter manually
+- The -e parameter can be used to set the encoding to sdomething like latin-1 if needed
 
 *Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings using the -m map[ping file method.  Python programmers will likley want to use the -p python module method as they have more complete control over the process.*
 
