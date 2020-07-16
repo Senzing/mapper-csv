@@ -75,21 +75,21 @@ class mapper():
         return new_value
 
     #----------------------------------------
-    def format_date(self, date_string, output_format = None):
+    def format_date(self, raw_date, output_format = None):
         for date_format in self.date_formats:
-            try: date_value = datetime.strptime(date_string, date_format)
+            try: new_date = datetime.strptime(raw_date, date_format)
             except: pass
             else: 
                 if not output_format:
-                    if len(date_string) == 4:
+                    if len(raw_date) == 4:
                         output_format = '%Y'
-                    elif len(date_string) in (5,6):
+                    elif len(raw_date) in (5,6):
                         output_format = '%m-%d'
-                    elif len(date_string) in (7,8):
+                    elif len(raw_date) in (7,8):
                         output_format = '%Y-%m'
                     else:
                         output_format = '%Y-%m-%d'
-                return datetime.strftime(date_value, output_format)
+                return datetime.strftime(new_date, output_format)
         return ''
 
 #----------------------------------------
