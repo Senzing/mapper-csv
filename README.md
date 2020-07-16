@@ -18,11 +18,11 @@ These csv mapping tools help you map any csv file into json for loading into Sen
     1. [Complete the mapping](#complete-the-mapping)
     1. [Generate the json file](#generate-the-json-file)
     1. [Loading into Senzing](#loading-into-senzing)
-1. [Mapping file structure](#mapping-file-structure)
+1. [Mapping file tutorial](#mapping-file-tutorial)
     1. [Input section](#input-section)
-    1. [Output section](#output-section)
     1. [Calculations section](#calculations-section)
-1. [Mapping template class](#mapping-template-class)
+    1. [Output section](#output-section)
+1. [Python template tutorial](#python-template-tutorial)
     1. [Input section](#input-section)
     1. [Output section](#output-section)
     1. [Calculations section](#calculations-section)
@@ -95,6 +95,8 @@ The purpose of this analysis helps you to determine what columns to map in the f
 ### Complete the mapping
 
 If using the mapping file approach, complete the mapping by following the [Mapping file tutorial](#mapping-file-tutorial)
+
+If using the python module approach, complete the mapping by following the [Python template tutorial](#python-template-tutorial)
 
 ### Generate the json file
 
@@ -205,9 +207,9 @@ Just like calculations above, the filter is a single line python expression refe
 "outputs": [
     {
         "filter": "not rowData['name']",      <-- add this filter to remove the blank record in the test file 
-        "data_source": "<supply>",            <-- use "TEST" here
+        "data_source": "TEST",                <-- use "TEST" here
         "entity_type": "GENERIC",             <-- keep the default "GENERIC" here
-        "record_id": "<remove_or_supply>",    <-- use "%(uniqueid)s" as it is a unique value (see the statistics below?) 
+        "record_id": "%(uniqueid)s",          <-- use uniqueid here as it the unique ID for each record in the file
         ...
 ```
 **Step 2:** Then for each column, replace the attribute tag with the Senzing attribute of your choice.   Please note you can delete any attributes you don't want or add any new attributes you have computed in the calculations section described below.
@@ -302,5 +304,13 @@ Just like calculations above, the filter is a single line python expression refe
         "mapping": "%(value)s",
         ...
     }
-
 ```
+
+### Python template tutorial
+
+Review the [mappings/test_set1.py](mappings/test_set1.py). The majority of it was built by the csv_analyzer.
+
+*Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
+
+### Input section
+
