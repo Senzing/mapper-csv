@@ -76,7 +76,7 @@ python csv_analyzer.py \
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
-### Review the results
+### Review the statistics
 
 Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The columns are ...
 - columnName - The name of the column. 
