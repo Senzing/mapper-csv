@@ -92,11 +92,9 @@ The purpose of this analysis helps you to determine what columns to map in the f
 - Lets say you want to use the SSN column to match and it is 100% populated. But it is only 10% unique meaning a lot of the records have the same SSN.  This may be ok, but it certainly indicates that you are looking at a list of transactions rather than a list of entities.
 - Lets say you have last_name and first_name columns but the first_name column is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
 
-### Complete the mapping or python template
+### Complete the mapping
 
-
-
-The best way to describe how to complete the mapping is review the [Mapping file structure](#mapping-file-structure)
+If using the mapping file approach, complete the mapping by following the [Mapping file tutorial](#mapping-file-tutorial)
 
 Open the mapping file mappings/test_set1.map with your favorite text editor.
 
@@ -158,7 +156,7 @@ Please note you could also use the stream loader here https://github.com/Senzing
 
 *In fact, a future update of this project will send the output directly to a rabbit mq so that yet another file of the data does not have to be created.  Or you could modify this program yourself!*
 
-### Mapping file structure
+### Mapping file tutorial
 
 Review the [mappings/test_set1.map](mappings/test_set1.map). The majority of it was built by the csv_analyzer.
 
