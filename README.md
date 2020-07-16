@@ -18,12 +18,12 @@ These csv mapping tools help you map any csv file into json for loading into Sen
     1. [Input section](#input-section)
     1. [Calculations section](#calculations-section)
     1. [Output section](#output-section)
-    1. [Running the mapper1](running-the-mapper1)
+    1. [Run the mapper with a mapping file](#run-the-mapper-with-a-mapping-file)
 1. [Python module tutorial](#python-module-tutorial)
     1. [Adding your own functions](#adding-your-own-functions)
     1. [Updating the mappings](#updating-the-mappings)
     1. [Unit testing](#unit-testing)
-    1. [Running the mapper2](running-the-mapper2)
+    1. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
 1. [Loading into Senzing](#loading-into-senzing)
 
 ### Prerequisites
@@ -97,6 +97,7 @@ If using the mapping file approach, complete the following steps ...
 Review the [mappings/test_set1.map](mappings/test_set1.map). It was built by the csv_analyzer based on the columns in the csv file.
 
 *Note: Remember when you ran the analyzer above and saved the current mapping file for this csv to mappings/test_set1.map.bk?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.*
+
 
 ### Input section
 The purpose of this section is to set the csv file delimiter and column headers.   
@@ -243,7 +244,7 @@ Just like calculations above, the filter is a single line python expression refe
     }
 ```
 
-### Running the mapper1
+### Run the mapper with a mapping file
 
 Execute the csv_mapper script as follows ...
 ```console
@@ -297,6 +298,7 @@ Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the c
 
 *Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
 
+
 ### Adding your own functions
 
 In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
@@ -305,7 +307,7 @@ In this tutorial, we will assume the type field is inaccurate and we will add ou
 
 ### Unit testing
 
-### Running the mapper2
+### Run the mapper with a python module
 
 Execute the csv_mapper script as follows ...
 ```console
