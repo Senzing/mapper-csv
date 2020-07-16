@@ -81,6 +81,9 @@ class mapper():
         #      666-66-6666 (1)
         new_data['SSN_NUMBER'] = raw_data['ssn']
 
+        if is_organization:
+            new_data['ADDR_TYPE'] = 'BUSINESS'
+
         # columnName: addr1
         # 88.89 populated, 100.0 unique
         #      111 First (1)
