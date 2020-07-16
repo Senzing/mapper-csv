@@ -99,7 +99,8 @@ if __name__ == "__main__":
     test_mapper = mapper()
 
     print('\nmap function result ...')
-    test_result = test_mapper.map({"COLUMN1": "100", "COLUMN2": "NULL", "COLUMN3": "NAME"})
+    raw_data = {"COLUMN1": "100", "COLUMN2": "NULL", "COLUMN3": "NAME"}
+    test_result = test_mapper.map(raw_data)
     print('\n' + json.dumps(test_result))
 
     print('\nclean_value tests ...')
