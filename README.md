@@ -22,10 +22,12 @@ These csv mapping tools help you map any csv file into json for loading into Sen
     1. [Input section](#input-section)
     1. [Calculations section](#calculations-section)
     1. [Output section](#output-section)
-1. [Python template tutorial](#python-template-tutorial)
+    1. [Run the mapper with a mapping file](Run-the-mapper-with-a-mapping-file)
+1. [Python module tutorial](#python-module-tutorial)
     1. [Adding your own functions](#adding-your-own-functions)
     1. [Updating the mappings](#updating-the-mappings)
     1. [Unit testing](#unit-testing)
+    1. [Run the mapper with a python module](Run-the-mapper-with-a-python-module)
 
 ### Prerequisites
 - python 3.6 or higher
@@ -91,73 +93,9 @@ The purpose of this analysis helps you to determine what columns to map in the f
 - Lets say you want to use the SSN column to match and it is 100% populated. But it is only 10% unique meaning a lot of the records have the same SSN.  This may be ok, but it certainly indicates that you are looking at a list of transactions rather than a list of entities.
 - Lets say you have last_name and first_name columns but the first_name column is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
 
-### Complete the mapping
-
-If using the mapping file approach, complete the mapping by following the [Mapping file tutorial](#mapping-file-tutorial)
-
-If using the python module approach, complete the mapping by following the [Python template tutorial](#python-template-tutorial)
-
-### Generate the json file
-
-Execute the csv_mapper script as follows ...
-```console
-python csv_mapper.py \
-  -i input/test_set1.csv \
-  -m mappings/test_set1.map \
-  -o output/test_set1.json \
-  -l output/test_set1-statistics.json
-
-Processing input/test_set1.csv ...
- 10 rows processed, 1 rows skipped, complete!               <--the header row was skipped
-
-OUTPUT #0 ...
-  8 rows written
-  1 rows skipped                                            <--this was due to the empty name filter
-
- MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
-  name_full.....................          4 50.0 %
-  name_org......................          4 50.0 %
-  date_of_birth.................          2 25.0 %
-  ssn_number....................          2 25.0 %
-  addr_type.....................          4 50.0 %
-  addr_line1....................          8 100.0 %
-  addr_city.....................          8 100.0 %
-  addr_state....................          8 100.0 %
-  addr_postal_code..............          8 100.0 %
-
- UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
-  important_date................          8 100.0 %
-  important_status..............          8 100.0 %
-
- COLUMNS IGNORED: 
-  uniqueid, type, name, gender, value                       <--make sure you didn't intend to map these!
-
-process completed!
-```
-The -i parameter is for the csv file you want to map into json.
-The -o parameter is for the name of the json records to.
-The -m parameter is for the name of the completed mapping file to use.
-
-You will want to review the statistics it produces and make sure it makes sense to you ... 
-- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.   In this case, it shows that about 1/2 the records were for organizations and half were people.
-- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.  Maybe prof_license should have been named prof_license_number!
-- Should any of the columns ignored be included?
-
-### Loading into Senzing
-
-*Please be sure first add any new configurations to Senzing!  This might include new data sources, entity types, features or attributes!.  See the G2ConfigTool.py and readme on the /opt/senzing/g2/python subdirectory.*
-
-If you use the G2Loader program to load your data, from the /opt/senzing/g2/python directory ...
-
-```console
-python3 G2Loader.py -f <path-to>/test_set1.json
-```
-
-Please note you could also use the stream loader here https://github.com/Senzing/stream-loader
-
-*In fact, a future update of this project will send the output directly to a rabbit mq so that yet another file of the data does not have to be created.  Or you could modify this program yourself!*
-
 ### Mapping file tutorial
+
+If using the mapping file approach, complete the following steps ...
 
 Review the [mappings/test_set1.map](mappings/test_set1.map). It was built by the csv_analyzer based on the columns in the csv file.
 
@@ -309,7 +247,55 @@ Just like calculations above, the filter is a single line python expression refe
     }
 ```
 
-### Python template tutorial
+### Run the mapper with a mapping file
+
+Execute the csv_mapper script as follows ...
+```console
+python csv_mapper.py \
+  -i input/test_set1.csv \
+  -m mappings/test_set1.map \
+  -o output/test_set1.json \
+  -l output/test_set1-statistics.json
+
+Processing input/test_set1.csv ...
+ 10 rows processed, 1 rows skipped, complete!               <--the header row was skipped
+
+OUTPUT #0 ...
+  8 rows written
+  1 rows skipped                                            <--this was due to the empty name filter
+
+ MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
+  name_full.....................          4 50.0 %
+  name_org......................          4 50.0 %
+  date_of_birth.................          2 25.0 %
+  ssn_number....................          2 25.0 %
+  addr_type.....................          4 50.0 %
+  addr_line1....................          8 100.0 %
+  addr_city.....................          8 100.0 %
+  addr_state....................          8 100.0 %
+  addr_postal_code..............          8 100.0 %
+
+ UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
+  important_date................          8 100.0 %
+  important_status..............          8 100.0 %
+
+ COLUMNS IGNORED: 
+  uniqueid, type, name, gender, value                       <--make sure you didn't intend to map these!
+
+process completed!
+```
+The -i parameter is for the csv file you want to map into json.
+The -o parameter is for the name of the json records to.
+The -m parameter is for the name of the completed mapping file to use.
+
+You will want to review the statistics it produces and make sure it makes sense to you ... 
+- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.   In this case, it shows that about 1/2 the records were for organizations and half were people.
+- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.  Maybe prof_license should have been named prof_license_number!
+- Should any of the columns ignored be included?
+
+### Python module tutorial
+
+If using the python module approach, complete the following steps ...
 
 Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.
 
@@ -323,6 +309,68 @@ In this tutorial, we will assume the type field is inaccurate and we will add ou
 ### Updating the mappings
 
 ### Unit testing
+
+### Run the mapper with a python module
+
+Execute the csv_mapper script as follows ...
+```console
+python csv_mapper.py \
+  -i input/test_set1.csv \
+  -p mappings/test_set1.py \
+  -o output/test_set1.json \
+  -l output/test_set1-statistics.json
+
+Processing input/test_set1.csv ...
+ 10 rows processed, 1 rows skipped, complete!               <--the header row was skipped
+
+OUTPUT #0 ...
+  8 rows written
+  1 rows skipped                                            <--this was due to the empty name filter
+
+ MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
+  name_full.....................          4 50.0 %
+  name_org......................          4 50.0 %
+  date_of_birth.................          2 25.0 %
+  ssn_number....................          2 25.0 %
+  addr_type.....................          4 50.0 %
+  addr_line1....................          8 100.0 %
+  addr_city.....................          8 100.0 %
+  addr_state....................          8 100.0 %
+  addr_postal_code..............          8 100.0 %
+
+ UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
+  important_date................          8 100.0 %
+  important_status..............          8 100.0 %
+
+ COLUMNS IGNORED: 
+  uniqueid, type, name, gender, value                       <--make sure you didn't intend to map these!
+
+process completed!
+```
+The -i parameter is for the csv file you want to map into json.
+The -o parameter is for the name of the json records to.
+The -m parameter is for the name of the completed mapping file to use.
+
+You will want to review the statistics it produces and make sure it makes sense to you ... 
+- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.   In this case, it shows that about 1/2 the records were for organizations and half were people.
+- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.  Maybe prof_license should have been named prof_license_number!
+- Should any of the columns ignored be included?
+
+### Loading into Senzing
+
+*Please be sure first add any new configurations to Senzing!  This might include new data sources, entity types, features or attributes!.  See the G2ConfigTool.py and readme on the /opt/senzing/g2/python subdirectory.*
+
+If you use the G2Loader program to load your data, from the /opt/senzing/g2/python directory ...
+
+```console
+python3 G2Loader.py -f <path-to>/test_set1.json
+```
+
+Please note you could also use the stream loader here https://github.com/Senzing/stream-loader
+
+*In fact, a future update of this project will send the output directly to a rabbit mq so that yet another file of the data does not have to be created.  Or you could modify this program yourself!*
+
+
 
 
 
