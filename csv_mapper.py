@@ -120,7 +120,7 @@ def processFile():
         if not os.path.exists(pythonModuleFile):
             print('%s does not exist' % mappingFileName)
             return -1
-        pythonMapper = SourceFileLoader("process", pythonModuleFile).load_module()
+        pythonMapper = SourceFileLoader("python_module", pythonModuleFile).load_module()
         pythonMapperClass = pythonMapper.mapper()
 
         mappingDoc = {}
