@@ -12,12 +12,8 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 
 1. [Prerequisites](#prerequisites)
 1. [Installation](#installation)
-1. [Tutorial](#typical-use)
-    1. [Run the analyzer](#run-the-analyzer)
-    1. [Review the statistics](#review-the-statistics)
-    1. [Complete the mapping](#complete-the-mapping)
-    1. [Generate the json file](#generate-the-json-file)
-    1. [Loading into Senzing](#loading-into-senzing)
+1. [Run the analyzer](#run-the-analyzer)
+1. [Review the statistics](#review-the-statistics)
 1. [Mapping file tutorial](#mapping-file-tutorial)
     1. [Input section](#input-section)
     1. [Calculations section](#calculations-section)
@@ -28,6 +24,7 @@ These csv mapping tools help you map any csv file into json for loading into Sen
     1. [Updating the mappings](#updating-the-mappings)
     1. [Unit testing](#unit-testing)
     1. [Run the mapper with a python module](Run-the-mapper-with-a-python-module)
+1. [Loading into Senzing](#loading-into-senzing)
 
 ### Prerequisites
 - python 3.6 or higher
@@ -367,11 +364,3 @@ python3 G2Loader.py -f <path-to>/test_set1.json
 ```
 
 Please note you could also use the stream loader here https://github.com/Senzing/stream-loader
-
-*In fact, a future update of this project will send the output directly to a rabbit mq so that yet another file of the data does not have to be created.  Or you could modify this program yourself!*
-
-
-
-
-
-
