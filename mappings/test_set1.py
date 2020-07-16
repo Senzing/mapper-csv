@@ -59,6 +59,7 @@ class mapper():
         #      General Hospital (1)
         #      Mary Smith (1)
         #      Peter  Anderson (1)
+        #new_data['name'] = raw_data['name']
         if is_organization:
             new_data['NAME_ORG'] = raw_data['name']
         else:
@@ -166,7 +167,7 @@ class mapper():
         self.variant_data = {}
         self.variant_data['GARBAGE_VALUES'] = ['NULL', 'NUL', 'N/A']
 
-        #--orgnization tokens
+        #--organization tokens
         self.variant_data['ORGANIZATION_TOKENS'] = []
         self.variant_data['ORGANIZATION_TOKENS'].append('COMPANY')
         self.variant_data['ORGANIZATION_TOKENS'].append('HOSPITAL')
@@ -276,6 +277,5 @@ if __name__ == "__main__":
             print('\t%s [%s, %s, %s] -> [%s]' % ('pass', test[0], test[1], test[2], test[3]))
         else:
             print('\t%s [%s, %s, %s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], test[2], test[3], result))
-
 
     print ('\ntests complete\n')
