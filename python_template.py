@@ -102,7 +102,7 @@ if __name__ == "__main__":
     test_result = test_mapper.map({"COLUMN1": "100", "COLUMN2": "NULL", "COLUMN3": "NAME"})
     print('\n' + json.dumps(test_result))
 
-    print('\nclean value tests ...')
+    print('\nclean_value tests ...')
     tests = []
     tests.append(['ABC    COMPANY', 'ABC COMPANY'])
     tests.append([' n/a', ''])
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         else:
             print('\t%s [%s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], result))
 
-    print('\nformat date tests ...')
+    print('\nformat_date tests ...')
     tests = []
     tests.append(['11/12/1927', '1927-11-12'])
     tests.append(['01-2027', '2027-01'])
