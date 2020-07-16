@@ -96,10 +96,6 @@ The purpose of this analysis helps you to determine what columns to map in the f
 
 If using the mapping file approach, complete the mapping by following the [Mapping file tutorial](#mapping-file-tutorial)
 
-Open the mapping file mappings/test_set1.map with your favorite text editor.
-
-Remember when you ran the analyzer above and saved the current mapping file for this csv to *mappings/test_set1.map.bk*?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.
-
 ### Generate the json file
 
 Execute the csv_mapper script as follows ...
@@ -159,6 +155,9 @@ Please note you could also use the stream loader here https://github.com/Senzing
 ### Mapping file tutorial
 
 Review the [mappings/test_set1.map](mappings/test_set1.map). The majority of it was built by the csv_analyzer.
+
+*Note: Remember when you ran the analyzer above and saved the current mapping file for this csv to mappings/test_set1.map.bk?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.*
+
 
 ### Input section
 The purpose of this section is to set the csv file delimiter and column headers.   
