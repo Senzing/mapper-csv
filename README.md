@@ -60,11 +60,8 @@ Execute the csv_analyzer script as follows ...
 python csv_analyzer.py -i input/test_set1.csv -o input/test_set1-analysis.csv -m mappings/test_set1.map -p mappings/test_set1.py
 ```
 The -i parameter is for the csv file you want to analyze.
-
 The -o parameter is for the name of the file to write the statistics to.  It is a csv file as well.
-
 The -m parameter is for the name of the mapping file to create.  You will later edit this file to map the csv to json using this method.
-
 The -p parameter is for the name of the python module file to create.  You will later edit this file to map the csv to json using this method.
 
 *Note: The csv analyzer attempts to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.*
