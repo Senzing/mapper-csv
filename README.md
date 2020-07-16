@@ -5,24 +5,26 @@
 These csv mapping tools help you map any csv file into json for loading into Senzing.  It contains the following python scripts ...
 - The [csv_analyzer.py](csv_analyzer.py) script reads a csv, accumulating column statistics like percent populated, percent unique and top 5 values.  It also creates a default mapping file to be used by the csv_mapper.
 - The [csv_mapper.py](csv_mapper.py) script reads a csv using a mapping file to turn it into senzing json.
-- The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) combine to create a set of functions that can be called by the csv_mapper to convert data.  It contains functions to detect if a name is an organization or a person, standardize dates. etc.  It is expected that you will add your own functions, organization name tokens, etc.
-
+- The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) are a set of functions used by the csv_analyzer and csv_mapper.
+- The [python_template.py](python_template.py) is the template for a customizable python module.  Sometimes the number of transforms required to map a csv file warrant going straight to python.  As a bonus, this module is portable in that it contains a mapping class that can be called from other transports.   Sometimes, you want to test your mappings in a file, but implement it via a message queue.
 
 ## Contents
 
 1. [Prerequisites](#prerequisites)
 1. [Installation](#installation)
-1. [Tutorial](#typical-use)
-    1. [Run the analyzer](#run-the-analyzer)
-    1. [Review the statistics](#review-the-statistics)
-    1. [Complete the mapping](#complete-the-mapping)
-    1. [Generate the json file](#generate-the-json-file)
-    1. [Loading into Senzing](#loading-into-senzing)
-1. [Mapping file structure](#mapping-file-structure)
+1. [Run the analyzer](#run-the-analyzer)
+1. [Review the statistics](#review-the-statistics)
+1. [Mapping file tutorial](#mapping-file-tutorial)
     1. [Input section](#input-section)
-    1. [Output section](#output-section)
     1. [Calculations section](#calculations-section)
-    1. [Multiple mappings and filters](#multiple-mappings-and-filters)
+    1. [Output section](#output-section)
+    1. [Run the mapper with a mapping file](#run-the-mapper-with-a-mapping-file)
+1. [Python module tutorial](#python-module-tutorial)
+    1. [Adding your own functions](#adding-your-own-functions)
+    1. [Update the mappings](#update-the-mappings)
+    1. [Standalone testing](#standalone-testing)
+    1. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
+1. [Loading into Senzing](#loading-into-senzing)
 
 ### Prerequisites
 - python 3.6 or higher
@@ -35,45 +37,44 @@ Place the the following files on a directory of your choice.
 - [csv_mapper.py](csv_mapper.py)
 - [csv_functions.py](csv_functions.py)
 - [csv_functions.json](csv_functions.json)
+- [csv_functions.json](csv_functions.json)
+- [python_template.py](python_template.py)
 
-Include the input, mappings and output subdirectories and files for the tutorial@
+Include the input, mappings and output subdirectories and files for the tutorial
 
 - [input/test_set1.csv](input/test_set1.csv)
-- [mappings/test_set1.map](input/test_set1.map)
-- [output/test_set1.json](input/test_set1.json)
-
+- [mappings/test_set1.map](mappings/test_set1.map)
+- [mappings/test_set1.py](mappings/test_set1.py)
+- [output/test_set1.json](output/test_set1.json)
 
 ### Tutorial
 
-Follow these steps in order.  First use the supplied file test_set1.json.  Then try it with one of your own files!
+Follow these steps in order.  First use the supplied file test_set1.csv.  Then try it with one of your own files!
 
 ### Run the analyzer
 
 Execute the csv_analyzer script as follows ...
 ```console
-python csv_analyzer.py -i input/test_set1.csv -o input/test_set1-analysis.csv -m mappings/test_set1.map
-
-Mapping file already exists!!, overwrite it? (Y/N) y       <--this will only occur if you analyze a file twice
-current mapping file renamed to mappings/test_set1.map.bk  <--we will use this file in the tutorial!
-
-Analyzing input/test_set1.csv ...
- 8 records processed, complete!
-
-Writing results to input/test_set1-analysis.csv ...
-
-process completed!
+python csv_analyzer.py \
+  -i input/test_set1.csv \
+  -o input/test_set1-analysis.csv \
+  -m mappings/test_set1.map \
+  -p mappings/test_set1.py
 ```
-The -i parameter is for the csv file you want to analyze.
+- The -i parameter is for the csv file you want to analyze.
+- The -o parameter is for the name of the file to write the statistics to.  It is a csv file as well.
+- The -m parameter is for the name of the mapping file to create.  You will later edit this file to map the csv to json using this method.
+- The -p parameter is for the name of the python module file to create.  You will later edit this file to map the csv to json using this method.
 
-The -o parameter is for the name of the file to write the statistics to.  It is a csv file as well.
+*Note: The csv analyzer use the csv module sniffer to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.*
+- The -d parameter can be used to set the csv column delimiter manually
+- The -e parameter can be used to set the encoding to sdomething like latin-1 if needed
 
-The -m parameter is for the name of the mapping file to create.  You will later edit this file to map the csv to json.
-
-*Note: the csv analyzer attempts to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.*
+*Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings using the -m map[ping file method.  Python programmers will likley want to use the -p python module method as they have more complete control over the process.*
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
-### Review the results
+### Review the statistics
 
 Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The columns are ...
 - columnName - The name of the column. 
@@ -89,79 +90,14 @@ The purpose of this analysis helps you to determine what columns to map in the f
 - Lets say you want to use the SSN column to match and it is 100% populated. But it is only 10% unique meaning a lot of the records have the same SSN.  This may be ok, but it certainly indicates that you are looking at a list of transactions rather than a list of entities.
 - Lets say you have last_name and first_name columns but the first_name column is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
 
-### Complete the mapping
-The best way to describe how to complete the mapping is review the [Mapping file structure](#mapping-file-structure)
+### Mapping file tutorial
 
-Open the mapping file mappings/test_set1.map with your favorite text editor.
+If using the mapping file approach, complete the following steps ...
 
-Remember when you ran the analyzer above and saved the current mapping file for this csv to *mappings/test_set1.map.bk*?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.
+Review the [mappings/test_set1.map](mappings/test_set1.map). It was built by the csv_analyzer based on the columns in the csv file.
 
-### Generate the json file
+*Note: Remember when you ran the analyzer above and saved the current mapping file for this csv to mappings/test_set1.map.bk?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.*
 
-Execute the csv_mapper script as follows ...
-```console
-python csv_mapper.py -i input/test_set1.csv -m mappings/test_set1.map -o output/test_set1.json -l output/test_set1-statistics.json
-
-Processing input/test_set1.csv ...
- 8 rows processed, 1 rows skipped, complete!
-
-OUTPUT #0 ...
-  6 rows written
-  1 rows skipped                                        <--this was due to the empty name filter
-
- MAPPED ATTRIBUTES:
-  name_org......................          3 50.0 %      <--these are the calculated attributes
-  name_full.....................          3 50.0 %
-  record_type...................          6 100.0 %
-  gender........................          2 33.33 %
-  date_of_birth.................          1 16.67 %
-  ssn_number....................          1 16.67 %
-  tax_id_number.................          1 16.67 %
-  addr_line1....................          6 100.0 %
-  addr_city.....................          6 100.0 %
-  addr_state....................          6 100.0 %
-  addr_postal_code..............          6 100.0 %
-
- UNMAPPED ATTRIBUTES:
-  ref_gender....................          0 0.0 %
-  ref_dob.......................          1 16.67 %     <--these are the reclassed values for organizations
-  ref_ssn.......................          1 16.67 %
-  ref_dlnum.....................          0 0.0 %
-  prof_license..................          6 100.0 %     <--did you expect this to be a mapped attribute?
-
- COLUMNS IGNORED: 
-  uniqueid, name                                        <--make sure you didn't intend to map these!
-
-process completed!
-```
-The -i parameter is for the csv file you want to map into json.
-
-The -o parameter is for the name of the json records to.
-
-The -m parameter is for the name of the completed mapping file to use.
-
-You will want to review the statistics it produces and make sure it makes sense to you ... 
-- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.   In this case, it shows that about 1/2 the records were for organizations and half were people.
-- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.  Maybe prof_license should have been named prof_license_number!
-- Should any of the columns ignored be included?
-
-### Loading into Senzing
-
-*Please be sure first add any new configurations to Senzing!  This might include new data sources, entity types, features or attributes!.  See the G2ConfigTool.py and readme on the /opt/senzing/g2/python subdirectory.*
-
-If you use the G2Loader program to load your data, from the /opt/senzing/g2/python directory ...
-
-```console
-python3 G2Loader.py -f <path-to>/test_set1.json
-```
-
-Please note you could also use the stream loader here https://github.com/Senzing/stream-loader
-
-*In fact, a future update of this project will send the output directly to a rabbit mq so that yet another file of the data does not have to be created.  Or you could modify this program yourself!*
-
-### Mapping file structure
-
-Review the [mappings/test_set1.map](mappings/test_set1.map). The majority of it was built by the csv_analyzer.
 
 ### Input section
 The purpose of this section is to set the csv file delimiter and column headers.   
@@ -175,107 +111,400 @@ The purpose of this section is to set the csv file delimiter and column headers.
         "gender",
         ...
 ```
-### Output section
-The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ... https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification
 
-**Step 1:** Decide on a data source code, entity type and record_id for this data set.  You can hard code values like "TEST" below or refer to csv columns in source input file using the pythonic notation for replacing data in strings "%(columnName)s" 
-```console
-"outputs": [
-    {
-        "data_source": "<supply>",  <--"TEST" supplied here
-        "entity_type": "<supply>",  <--"%(record_type)s" supplied here
-        "record_id": "<supply>",    <--"%(uniqueid)s" supplied here
-        ...
-```
-**Step 2:** Then for each column, replace the attribute tag with the Senzing attribute of your choice.   Please note you can delete any attributes you don't want or add any new attributes you have computed in the calculations section described below.
-```console
-{
-    "attribute": "<ignore>",    <--GENDER supplied here
-    "mapping": "%(gender)s"
-},
-{
-    "attribute": "<ignore>",    <--DATE_OF_BIRTH supplied here
-    "mapping": "%(DOB)s"
-}
-```
-You may notice the statistics section supplied for each column by the csv_analyzer. This is not required by the csv_mapper, but is included to help you decide on the appropriate mapping.  For instance if this field was not populated or did not contain M and F as values, you may want to not map it at all or convert it in the calculations sectrion described below.
-```console
-"statistics": {
-    "columnName": "gender",
-    "populated%": 42.86,
-    "unique%": 66.67,
-    "top5values": [
-        "F (2)",
-        "M (1)"
-    ]
-}
-```
 ### Calculations section
 This is where you can transform the data in your csv file. Here you can execute python code to create new columns from old columns.  
 ```console
 "calculations": [
-    {"is_organization": "csv_functions.is_organization_name(rowData['name'])"},
-    {"record_type": "'ORGANIZATION' if rowData['is_organization'] else 'PERSON'"},
-    {"name_org": "rowData['name'] if rowData['is_organization'] else ''"},
-    {"name_full": "rowData['name'] if not rowData['is_organization'] else ''"},
-    {"ref_gender": "rowData['gender'] if rowData['is_organization'] else ''"},
-    {"ref_dob": "rowData['dob'] if rowData['is_organization'] else ''"},
-    {"ref_ssn": "rowData['ssn'] if rowData['is_organization'] else ''"},
-    {"ref_dlnum": "rowData['dlnum'] if rowData['is_organization'] else ''"},
-    {"gender": "rowData['gender'] if not rowData['is_organization'] else ''"},
-    {"dob": "rowData['dob'] if not rowData['is_organization'] else ''"},
-    {"ssn": "rowData['ssn'] if not rowData['is_organization'] else ''"},
-    {"dlnum": "rowData['dlnum'] if not rowData['is_organization'] else ''"}
+      {"name_org": "rowData['name'] if rowData['type'] == 'company' else ''"},
+      {"name_full": "rowData['name'] if rowData['type'] != 'company' else ''"},
+      {"addr_type": "'BUSINESS' if rowData['type'] == 'company' else ''"}
 ],
 ```
 The syntax is {"newcolumnName": "single line of python code"}.  References to current column values use the rowData['columnName'] syntax. These calculations are executed in order which means that all the prior calculation's new column values are available to the later ones.  Notice that the first calculation creates the "is_organization" value that is called by all the ones after it.
 
 If the code you need to execute is more than a single line, create a function for it in the csv_functions.py script.  Notice how the first calculation that creates is_organization calls the approriate csv_function.
 
-Also notice that this set of calculations ... 
-1. detects whether the name field on the csv record is an organization or not 
-2. sets the record_type to "ORGANIZATION" or "PERSON"
-3. populates the the name_org or name_full column values for later mapping. 
-4. renames gender, dob, ssn and dlnum to ref_* equivalents if the name really represents an organization which should not have such features.  It does this in single commands by first creating the ref* columns and then clearing the original columns.
+The calculations above determine whether or not the name field should be mapped to name_org or name_full and if the address should be labled a "business" address.  It is a best practice for organizations to have their name mapped as a name_org and their physical address to be labeled business.
 
-Finally, notice that these calculated fields were mapped by adding then to the attributes section like so ...
+### Output section
+The purpose of this section is to map the csv columns to valid Senzing json attributes as defined here ... https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification
+
+Occasionally, you will have a csv file that really contains multiple entities which should be presented to the Senzing engine in separate json messages.  
+```console
+"outputs": [                                <-- this is a list of output messages
+    {
+        "filter": "not rowData['name']",   <-- this is a record level filter  
+```
+Simply duplicate the output structure as many times as you want.  Each must have a data source, entity type, record ID and list of attributes.
+
+Just like calculations above, the filter is a single line python expression referencing current record column values with the rowData['columnName'] syntax.  The one above bypasses any csv record with an empty name field.
+
+**Step 1:** Decide on a data source code, entity type and record_id for this data set. You can hard code values like "TEST" below or refer to csv columns in source input file using the pythonic notation for replacing data in strings "%(columnName)s"
+```console
+"outputs": [
+    {
+        "filter": "not rowData['name']",      <-- add this filter to remove the blank record in the test file 
+        "data_source": "TEST",                <-- use "TEST" here
+        "entity_type": "GENERIC",             <-- keep the default "GENERIC" here
+        "record_id": "%(uniqueid)s",          <-- use uniqueid here as it the unique ID for each record in the file
+        ...
+```
+**Step 2:** Then for each column, replace the attribute tag with the Senzing attribute of your choice.   Please note you can delete any attributes you don't want or add any new attributes you have computed in the calculations section described below.
+
+*You may notice the statistics section supplied for each column by the csv_analyzer. While not required by the csv_mapper, it is included to help you decide on the appropriate mapping.  For instance if this field was not populated or did not contain M and F as values, you may want to not map it at all or convert it in the calculations sectrion described below.*
 ```console
 "attributes": [
-    ...
     {
-        "attribute": "NAME_ORG",
-        "mapping": "%(name_org)s"
+        "attribute": "<ignore>",            <--keep ignoring this as we used it as the record_id above
+        "mapping": "%(uniqueid)s",
+        "statistics": {
+            "columnName": "uniqueid",
+            "populated%": 100.0,
+            "unique%": 100.0,
+            ...
+        }
     },
     {
+        "attribute": "<ignore>",            <--keep ignoring this as it will not be used for resolution
+        "mapping": "%(type)s",
+        ...
+    },
+    {                                       <--add this whole attribute section to map the calculated field
         "attribute": "NAME_FULL",
         "mapping": "%(name_full)s"
     },
-    {
-        "attribute": "RECORD_TYPE",
-        "mapping": "%(record_type)s"
+    {                                       <--add this whole attribute section to map the calculated field
+        "attribute": "NAME_ORG",            
+        "mapping": "%(name_org)s"
     },
     {
-        "attribute": "REF_GENDER",
-        "mapping": "%(ref_gender)s"
+        "attribute": "<ignore>",            <--keep ignoring the name as we replace it with name_org or name_full
+        "mapping": "%(name)s",
+        ...
     },
     {
-        "attribute": "REF_DOB",
-        "mapping": "%(ref_dob)s"
+        "attribute": "<ignore>",            <--keep ignoring the gender as it is not populated with meaningful values
+        "mapping": "%(gender)s",
+        "statistics": {
+            "columnName": "gender",
+            "populated%": 100.0,
+            "unique%": 11.11,
+            "top5values": [
+                "u (9)"
+            ]
+        }
     },
     {
-        "attribute": "REF_SSN",
-        "mapping": "%(ref_ssn)s"
+        "attribute": "DATE_OF_BIRTH",       <--map this to a recognized attribute in the generic entity specification
+        "mapping": "%(dob)s",
+        ...
     },
-    ...
+    {
+        "attribute": "SSN_NUMBER",          <--map this to a recognized attribute in the generic entity specification
+        "mapping": "%(ssn)s",
+        ...
+    {                                       <--add this whole attribute section to map the calculated field
+        "attribute": "ADDR_TYPE",         
+        "mapping": "%(addr_type)s"
+    },
+    {
+        "attribute": "ADDR_LINE1",          <--map this to a recognized attribute in the generic entity specification
+        "mapping": "%(addr1)s",
+        ...
+    },
+    {
+        "attribute": "ADDR_CITY",           <--map this to a recognized attribute in the generic entity specification
+        "mapping": "%(city)s",
+        ...
+    {
+        "attribute": "ADDR_STATE",          <--map this to a recognized attribute in the generic entity specification
+        "mapping": "%(state)s",
+        ...
+    },
+    {
+        "attribute": "ADDR_POSTAL_CODE",    <--map this to a recognized attribute in the generic entity specification
+        "mapping": "%(zip)s",
+        ...
+    }
+    {
+        "attribute": "important_date",      <--map this important value to a standardized name even though not used for resolution
+        "mapping": "%(create_date)s",
+        ...
+    },
+    {
+        "attribute": "important_status",    <--map this important value to a standardized name even though not used for resolution
+        "mapping": "%(status)s",
+        ...
+    },
+    {
+        "attribute": "<ignore>",            <--keep ignoring this as it may be too sensitive to store in Senzing
+        "mapping": "%(value)s",
+        ...
+    }
 ```
-### Multiple mappings and filters
-Occasionally, you will have a csv file that really contains multiple entities which should be presented to the Senzing engine in separate json messages.  
-```console
-    "outputs": [                                <-- this is a list of output messages
-        {
-            "filter": "not rowdata['name']",   <-- this is a record level filter  
-            "data_source": "TEST",
-```
-Simply duplicate the output structure as many times as you want.  Each must have a data source, entity type, record ID and list of attrributes.
 
-Just like calculations above, the filter is a single line python expression referencing current record column values with the rowData['columnName'] syntax.  The one above bypasses any csv record with an empty name field.
+### Run the mapper with a mapping file
+
+Execute the csv_mapper script as follows ...
+```console
+python csv_mapper.py \
+  -i input/test_set1.csv \
+  -m mappings/test_set1.map \
+  -o output/test_set1.json \
+  -l output/test_set1-statistics.json
+
+Processing input/test_set1.csv ...
+ 10 rows processed, 1 rows skipped, complete!               <--the header row was skipped
+
+OUTPUT #0 ...
+  8 rows written
+  1 rows skipped                                            <--this was due to the empty name filter
+
+ MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
+  name_full.....................          4 50.0 %
+  name_org......................          4 50.0 %
+  date_of_birth.................          2 25.0 %
+  ssn_number....................          2 25.0 %
+  addr_type.....................          4 50.0 %
+  addr_line1....................          8 100.0 %
+  addr_city.....................          8 100.0 %
+  addr_state....................          8 100.0 %
+  addr_postal_code..............          8 100.0 %
+
+ UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
+  important_date................          8 100.0 %
+  important_status..............          8 100.0 %
+
+ COLUMNS IGNORED: 
+  uniqueid, type, name, gender, value                       <--make sure you didn't intend to map these!
+
+process completed!
+```
+The -i parameter is for the csv file you want to map into json.
+The -o parameter is for the name of the json records to.
+The -m parameter is for the name of the completed mapping file to use.
+
+You will want to review the statistics it produces and make sure it makes sense to you ... 
+- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.
+- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.
+- Should any of the columns ignored be included?
+
+### Python module tutorial
+
+If using the python module approach, complete the following steps ...
+
+Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.
+
+*Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
+
+### Adding your own functions
+
+In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
+
+Step 1: Add the is_organization function just under the format_date function.
+```
+#-----------------------------------
+def is_organization(self, raw_name, raw_dob, raw_ssn):
+    if raw_dob or raw_ssn or not raw_name:
+        return False
+    prior_tokens = []
+    for token in raw_name.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
+        if token in self.variant_data['ORGANIZATION_TOKENS']:
+            return True
+        elif ' '.join(prior_tokens[-2:]) in self.variant_data['ORGANIZATION_TOKENS']:
+            return True
+        elif ' '.join(prior_tokens[-3:]) in self.variant_data['ORGANIZATION_TOKENS']:
+            return True
+        prior_tokens.append(token)
+    return False
+``` 
+Step 2: Add the configuration for it to the load_reference_data() function which is called by the module's initialization function at the top.  Not all functions will require reference data.
+```
+#--organization tokens
+self.variant_data['ORGANIZATION_TOKENS'] = []
+self.variant_data['ORGANIZATION_TOKENS'].append('COMPANY')
+self.variant_data['ORGANIZATION_TOKENS'].append('HOSPITAL')
+self.variant_data['ORGANIZATION_TOKENS'].append('CLINIC')
+self.variant_data['ORGANIZATION_TOKENS'].append('CITY OF')
+```
+Step 3: Add some unit tests for the function at the bottom.  Its just a good practice!
+```
+    print('\nis_organization tests ...')
+    tests = []
+    tests.append(['Joe Smith', '', '', 'No'])
+    tests.append(['ABC Company', '','', 'Yes'])
+    tests.append(['Joe Company', '1/12/2001','', 'No'])
+    tests.append([None, None, None, 'No'])
+    for test in tests:
+        result = 'Yes' if test_mapper.is_organization(test[0], test[1], test[2]) else 'No'
+        if result == test[3]:
+            print('\t%s [%s, %s, %s] -> [%s]' % ('pass', test[0], test[1], test[2], test[3]))
+        else:
+            print('\t%s [%s, %s, %s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], test[2], test[3], result))
+```
+
+### Update the mappings
+Filters, calculations and mappings are all done in the map() function which is called for every record.  The following changes were made for this test file ...
+
+Step 1: A filter was added in the filter section ...
+```
+#--place any filters needed here
+if not raw_data['name']:
+    return None
+```
+
+Step 2: Call the is_organization function in the calculations section ...
+```
+#--place any calculations needed here
+is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
+```
+
+Step 3: Update the new_data python dictionary by adding, changing or deleting its values.  The following code changes were made for this tutorial ...
+```
+new_data['DATA_SOURCE'] = 'TEST'  #-- set the data source
+
+new_data['ENTITY_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
+
+new_data['RECORD_ID'] = raw_data['uniqueid'] #--set the record_id
+
+#new_data['name'] = raw_data['name'] #--commented out in favor of ...
+if is_organization:
+    new_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
+else:
+    new_data['NAME_FULL'] = raw_data['name'] #--name_full if not
+
+#new_data['gender'] = raw_data['gender'] #--commented out as no value
+
+new_data['DATE_OF_BIRTH'] = raw_data['dob'] #--mapped
+
+new_data['SSN_NUMBER'] = raw_data['ssn'] #--mapped
+
+if is_organization:
+    new_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
+
+new_data['ADDR_LINE1'] = raw_data['addr1'] #--mapped
+
+new_data['ADDR_CITY'] = raw_data['city'] #--mapped
+
+new_data['ADDR_STATE'] = raw_data['state'] #--mapped
+
+new_data['ADDR_POSTAL_CODE'] = raw_data['zip'] #--mapped
+
+new_data['important_date'] = raw_data['create_date'] #--kept and standardized name
+
+new_data['important_status'] = raw_data['status'] #--kept and standardized name
+
+#new_data['value'] = raw_data['value'] #--comment out as un-needed
+
+```
+
+### Standalone testing
+
+The module will unit test itself if executed standalone.  A sample record was captured by the analyzer and is sent to the map() function for testing.  .  It is just meant to be a quick sanity check, but feel free to adjust the values in this record to test your code.
+
+Each of the special functions is also unit tested. If you add your own functions, it is good practice to add tests for it here.
+
+You would simply execute it standalione like so ...
+```
+python mappings/test_set1.py
+
+Initialize mapper class
+
+map function result ...
+
+{
+    "DATA_SOURCE": "TEST",
+    "ENTITY_TYPE": "ORGANIZATION",
+    "RECORD_ID": "1001",
+    "NAME_ORG": "ABC Company",
+    "DATE_OF_BIRTH": "",
+    "SSN_NUMBER": "",
+    "ADDR_TYPE": "BUSINESS",
+    "ADDR_LINE1": "111 First",
+    "ADDR_CITY": "Las Vegas",
+    "ADDR_STATE": "NV",
+    "ADDR_POSTAL_CODE": "89111",
+    "important_date": "1/1/01",
+    "important_status": "Active"
+}
+
+clean_value tests ...
+  pass [ABC    COMPANY] -> [ABC COMPANY]
+  pass [ n/a] -> []
+  pass [None] -> []
+
+format_date tests ...
+  pass [11/12/1927] -> [1927-11-12]
+  pass [01-2027] -> [2027-01]
+  pass [1-may-2020] -> [2020-05-01]
+  pass [None] -> []
+
+is_organization tests ...
+  pass [Joe Smith, , ] -> [No]
+  pass [ABC Company, , ] -> [Yes]
+  pass [Joe Company, 1/12/2001, ] -> [No]
+  pass [None, None, None] -> [No]
+
+tests complete
+
+```
+
+### Run the mapper with a python module
+
+Execute the csv_mapper script as follows ...
+```console
+python csv_mapper.py \
+  -i input/test_set1.csv \
+  -p mappings/test_set1.py \
+  -o output/test_set1.json \
+  -l output/test_set1-statistics.json
+
+Processing input/test_set1.csv ...
+ 10 rows processed, 2 rows skipped, complete!               <--both the header and empty rows were skipped
+
+OUTPUT #0 ...
+  8 rows written
+  0 rows skipped
+
+ MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
+  data_source...................          8 100.0 %
+  entity_type...................          8 100.0 %
+  record_id.....................          8 100.0 %
+  name_org......................          3 37.5 %
+  addr_type.....................          3 37.5 %
+  addr_line1....................          8 100.0 %
+  addr_city.....................          8 100.0 %
+  addr_state....................          8 100.0 %
+  addr_postal_code..............          8 100.0 %
+  name_full.....................          5 62.5 %
+  date_of_birth.................          2 25.0 %
+  ssn_number....................          2 25.0 %
+
+ UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
+  important_date................          8 100.0 %
+  important_status..............          8 100.0 %
+
+Mapping stats written to output/test_set1-statistics.json
+
+process completed!
+```
+The -i parameter is for the csv file you want to map into json.
+The -o parameter is for the name of the json records to.
+The -p parameter is for the name of the completed python module file to use.
+
+You will want to review the statistics it produces and make sure it makes sense to you ... 
+- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.
+- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.
+
+### Loading into Senzing
+
+*Please be sure first add any new configurations to Senzing!  This might include new data sources, entity types, features or attributes!.  See the G2ConfigTool.py and readme on the /opt/senzing/g2/python subdirectory.*
+
+If you use the G2Loader program to load your data, from the /opt/senzing/g2/python directory ...
+
+```console
+python3 G2Loader.py -f <path-to>/test_set1.json
+```
+
+Please note you could also use the stream loader here https://github.com/Senzing/stream-loader

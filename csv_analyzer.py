@@ -8,6 +8,11 @@ from datetime import datetime, timedelta
 import json
 import csv
 import glob
+from importlib.machinery import SourceFileLoader
+
+try: from csv_functions import csv_functions
+except: 
+    csv_functions = False
 
 #----------------------------------------
 def pause(question='PRESS ENTER TO CONTINUE ...'):
@@ -50,11 +55,19 @@ def getNextRow(fileInfo):
         fileInfo['rowCnt'] += 1
         if line: #--skip empty lines
 
+            if fileInfo['fieldDelimiter'] == 'JSON':
+                csv_data = json.loads(line)
+                for attr in csv_data:
+                    if type(csv_data[attr]) not in (list, dict) and attr not in fileInfo['header']:
+                        fileInfo['header'].append(attr)
+
+                return fileInfo, csv_data
+
             #--csv reader will return a list (mult-char delimiter must be manually split)
             if type(line) == list:
                 row = line
             else:
-                row = [removeQuoteChar(x.strip()) for x in line.split(fileInfo['delimiter'])]
+                row = [removeQuoteChar(x.strip()) for x in line.split(fileInfo['fieldDelimiter'])]
 
             #--turn into a dictionary if there is a header
             if 'header' in fileInfo:
@@ -132,6 +145,9 @@ def analyzeFile():
         print('%s not found' % inputFileName)
         return 1
 
+    #--need a test record for python module
+    testRecord = None
+
     #--for each input file
     for fileName in fileList:
         print('')
@@ -151,11 +167,12 @@ def analyzeFile():
         #--set the dialect
         currentFile['fieldDelimiter'] = mappingDoc['input']['fieldDelimiter']
         if not mappingDoc['input']['fieldDelimiter']:
-            currentFile['csvDialect'] = csv.Sniffer().sniff(currentFile['handle'].readline(), delimiters='|,\t')
+            sniffer = csv.Sniffer().sniff(currentFile['handle'].readline(), delimiters='|,\t')
             currentFile['handle'].seek(0)
-            currentFile['fieldDelimiter'] = currentFile['csvDialect'].delimiter
-            mappingDoc['input']['fieldDelimiter'] = currentFile['csvDialect'].delimiter
-        elif mappingDoc['input']['fieldDelimiter'].lower() in ('csv', 'comma', ','):
+            currentFile['fieldDelimiter'] = sniffer.delimiter
+            mappingDoc['input']['fieldDelimiter'] = sniffer.delimiter
+
+        if mappingDoc['input']['fieldDelimiter'].lower() in ('csv', 'comma', ','):
             currentFile['csvDialect'] = 'excel'
         elif mappingDoc['input']['fieldDelimiter'].lower() in ('tab', 'tsv', '\t'):
             currentFile['csvDialect'] = 'excel-tab'
@@ -204,11 +221,26 @@ def analyzeFile():
         while rowData:
             totalRowCnt += 1
 
+            if not testRecord:
+                testRecord = rowData
+
+            if pythonMapperClass:
+                rowData = pythonMapperClass.process(rowData)
+                print(rowData)
+
             #--for each column
             for columnName in currentFile['header']:
 
+                if columnName not in rowData: #--may not be if json
+                    statPack[columnName]['null'] += 1
+                    continue 
+                if columnName not in statPack: #--may not be if json
+                    statPack[columnName] = {'null': 0}
+                if columnName not in mappingDoc['input']['columnHeaders']:
+                    mappingDoc['input']['columnHeaders'].append(columnName) #--may not be if json
+
                 columnValue = str(rowData[columnName]).strip()
-                if not columnValue or columnValue.upper() in ('NONE', 'NULL', '\\N'):
+                if not columnValue or columnValue.strip().upper() in ('NONE', 'NULL', '\\N'):
                     statPack[columnName]['null'] += 1
                     continue
                 
@@ -218,6 +250,7 @@ def analyzeFile():
                     statPack[columnName][columnValue] = 1
                 
             currentFile, rowData = getNextRow(currentFile)
+
 
             #--break conditions
             if shutDown:
@@ -236,8 +269,6 @@ def analyzeFile():
     
     #--export the analysis    
     if outputFileName:
-        print()
-        print('Writing results to %s ...' % outputFileName)
         try: outputFileHandle = open(outputFileName, 'w', newline='')
         except IOError as err: 
             print()
@@ -261,7 +292,7 @@ def analyzeFile():
 
         #--first 100% unique field is recordID
         if uniqueCount == totalRowCnt and not bestRecordID.startswith('%'):
-            bestRecordID = '%(' + columnName + ')s'
+            bestRecordID = columnName
 
         topValue = []
         for value in sorted(statPack[columnName].items(), key=lambda x: x[1], reverse=True):
@@ -293,6 +324,7 @@ def analyzeFile():
     #--close the output file
     if outputFileName:
         outputFileHandle.close()
+        print('\nStatistics written to %s' % outputFileName)
     
     #--create or update the mapping file if provided
     if mappingFileName:
@@ -300,12 +332,14 @@ def analyzeFile():
             del mappingDoc['input']['fieldDelimiter']
         if not mappingDoc['input']['fileEncoding']:
             del mappingDoc['input']['fileEncoding']
+        if 'calculations' not in mappingDoc:
+            mappingDoc['calculations'] = []
         if 'outputs' not in mappingDoc:
             mappingDoc['outputs'] = []
             outputDoc = {}
             outputDoc['data_source'] = '<supply>'
-            outputDoc['entity_type'] = '<supply>'
-            outputDoc['record_id'] = bestRecordID
+            outputDoc['entity_type'] = 'GENERIC'
+            outputDoc['record_id'] = '<remove_or_supply>'
             outputDoc['attributes'] = possibleMappings
             mappingDoc['outputs'].append(outputDoc)
         try:
@@ -316,7 +350,77 @@ def analyzeFile():
             print('Could not write to %s' % mappingFileName)
             print(e)
 
+        print('\nMapping file written to %s' % mappingFileName)
+
+    #--create or update the mapping file if provided
+    if pythonModuleFile:
+
+        codeLines = []
+        with open('python_template.py', 'r') as f:
+            for line in f:
+                if line.strip() == "self.delimiter = '<supply>'":
+                    if 'fieldDelimiter' in mappingDoc['input'] and mappingDoc['input']['fieldDelimiter']:
+                        line = line.replace('<supply>', mappingDoc['input']['fieldDelimiter'])
+                        codeLines.append(line)
+
+                elif line.strip() == "self.encoding = '<supply>'":
+                    if 'fileEncoding' in mappingDoc['input'] and mappingDoc['input']['fileEncoding']:
+                        line = line.replace('<supply>', mappingDoc['input']['fileEncoding'])
+                        codeLines.append(line)
+
+                elif line.strip() == "new_data['RECORD_ID'] = '<supply>'":
+                    if not bestRecordID.startswith('<'):
+                        line = line.replace("'<supply>'", "raw_data['%s']" % bestRecordID)
+                    codeLines.append(line)
+
+                elif line.strip() == '#--column mappings':
+                    codeLines.append(line)
+                    for columnMapping in possibleMappings:
+                        codeLines.append('\n')
+                        codeLines.append("        # columnName: %s\n" % columnMapping['statistics']['columnName'])
+                        codeLines.append("        # %s populated, %s unique\n" % (columnMapping['statistics']['populated%'], columnMapping['statistics']['unique%']))
+                        for item in columnMapping['statistics']['top5values']:
+                            codeLines.append("        #      %s\n" % item)
+                        codeLines.append("        new_data['%s'] = raw_data['%s']\n" % (columnMapping['statistics']['columnName'], columnMapping['statistics']['columnName']))
+
+                elif line.strip().startswith('raw_data = {'):
+                    if not testRecord:
+                        codeLines.append(line)
+                    else:
+                        codeLines.append('    raw_data = {}\n')
+                        for key in testRecord:
+                            val = testRecord[key]
+                            if type(val) == str:
+                                val = '"' + val + '"'
+                            codeLines.append('    raw_data["%s"] = %s\n' % (key, val))
+
+                else:
+                    codeLines.append(line)
+
+        try:
+            with open(pythonModuleFile, 'w') as f:
+                for line in codeLines:
+                    f.write(line)
+        except Exception as e:
+            print()
+            print('Could not write to %s' % pythonModuleFile)
+            print(e)
+
+        print('\nPython module written to %s' % mappingFileName)
+
     return shutDown
+
+def fileBackup(thisFileName):
+    for i in range(10):
+        i = '' if i == 0 else i
+        backupFileName = thisFileName + '.bk%s' % i
+        if os.path.exists(backupFileName):
+            print('\t%s already exists!' % backupFileName)
+        else:                    
+            os.rename(thisFileName, backupFileName)
+            print('\t%s created' % backupFileName)
+            return True
+    return False
 
 #----------------------------------------
 if __name__ == "__main__":
@@ -330,29 +434,42 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--fileEncoding', dest='fileEncoding', help='file encoding')
     parser.add_argument('-o', '--outputFileName', dest='outputFileName', help='the name of the output file')
     parser.add_argument('-m', '--mappingFileName', dest='mappingFileName', help='optional name of a mapping file to generate')
+    parser.add_argument('-p', '--pythonModuleFile', dest='pythonModuleFile', help='optional name of a python module file to generate')
     args = parser.parse_args()
-    mappingFileName = args.mappingFileName
     inputFileName = args.inputFileName
     fieldDelimiter = args.fieldDelimiter
     fileEncoding = args.fileEncoding
     outputFileName = args.outputFileName
+    mappingFileName = args.mappingFileName
+    pythonModuleFile = args.pythonModuleFile
     
     if not inputFileName:
-        print('An input file name is required')
+        print('\nAn input file name is required\n')
         sys.exit(1)
         
     if mappingFileName and os.path.exists(mappingFileName):
-        print()
-        response = input('Mapping file already exists!!, overwrite it? (Y/N) ')
+        response = input('\nMapping file already exists!!, overwrite it? (Y/N) ')
         if response[0:1].upper() != 'Y':
             mappingFileName = None
-            print('mapping file will be preserved!')
-        else:
-            mappingFileBackup = mappingFileName + '.bk'
-            if os.path.exists(mappingFileBackup):
-                os.remove(mappingFileBackup)
-            os.rename(mappingFileName, mappingFileBackup)
-            print('current mapping file renamed to %s' % mappingFileBackup)
+            print('\nmapping file will be preserved!')
+        elif not fileBackup(mappingFileName):
+            print('\nAborted, backup failed!\n')
+            sys.exit(1)
+
+    pythonMapperClass = None
+    if pythonModuleFile and os.path.exists(pythonModuleFile):
+        response = input('\nPython module already exists!, overwrite it? (Y/N) ')
+        if response[0:1].upper() != 'Y':
+            pythonModuleFile = None
+            print('\nmapping file will be preserved!')
+        elif not fileBackup(pythonModuleFile):
+            print('\nAborted, backup failed!\n')
+            sys.exit(1)
+
+    if csv_functions:
+        csv_functions = csv_functions()
+        if not csv_functions.initialized:
+            sys.exit(1)
 
     result = analyzeFile()
     
