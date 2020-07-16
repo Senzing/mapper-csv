@@ -145,6 +145,9 @@ def analyzeFile():
         print('%s not found' % inputFileName)
         return 1
 
+    #--need a test record for python module
+    testRecord = None
+
     #--for each input file
     for fileName in fileList:
         print('')
@@ -217,6 +220,9 @@ def analyzeFile():
         currentFile, rowData = getNextRow(currentFile)
         while rowData:
             totalRowCnt += 1
+
+            if not testRecord:
+                testRecord = rowData
 
             if pythonMapperClass:
                 rowData = pythonMapperClass.process(rowData)
@@ -352,7 +358,6 @@ def analyzeFile():
         codeLines = []
         with open('python_template.py', 'r') as f:
             for line in f:
-
                 if line.strip() == "self.delimiter = '<supply>'":
                     if 'fieldDelimiter' in mappingDoc['input'] and mappingDoc['input']['fieldDelimiter']:
                         line = line.replace('<supply>', mappingDoc['input']['fieldDelimiter'])
@@ -377,6 +382,17 @@ def analyzeFile():
                         for item in columnMapping['statistics']['top5values']:
                             codeLines.append("        #      %s\n" % item)
                         codeLines.append("        new_data['%s'] = raw_data['%s']\n" % (columnMapping['statistics']['columnName'], columnMapping['statistics']['columnName']))
+
+                elif line.strip().startswith('raw_data = {'):
+                    if not testRecord:
+                        codeLines.append(line)
+                    else:
+                        codeLines.append('    raw_data = {}\n')
+                        for key in testRecord:
+                            val = testRecord[key]
+                            if type(val) == str:
+                                val = '"' + val + '"'
+                            codeLines.append('    raw_data["%s"] = %s\n' % (key, val))
 
                 else:
                     codeLines.append(line)
