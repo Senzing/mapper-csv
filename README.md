@@ -405,8 +405,50 @@ The module will unit test itself if executed standalone.  A sample record was ca
 
 Each of the special functions is also unit tested. If you add your own functions, it is good practice to add tests for it here.
 
+You would simply execute it standalione like so ...
+```
+python mappings/test_set1.py
 
+Initialize mapper class
 
+map function result ...
+
+{
+    "DATA_SOURCE": "TEST",
+    "ENTITY_TYPE": "ORGANIZATION",
+    "RECORD_ID": "1001",
+    "NAME_ORG": "ABC Company",
+    "DATE_OF_BIRTH": "",
+    "SSN_NUMBER": "",
+    "ADDR_TYPE": "BUSINESS",
+    "ADDR_LINE1": "111 First",
+    "ADDR_CITY": "Las Vegas",
+    "ADDR_STATE": "NV",
+    "ADDR_POSTAL_CODE": "89111",
+    "important_date": "1/1/01",
+    "important_status": "Active"
+}
+
+clean_value tests ...
+  pass [ABC    COMPANY] -> [ABC COMPANY]
+  pass [ n/a] -> []
+  pass [None] -> []
+
+format_date tests ...
+  pass [11/12/1927] -> [1927-11-12]
+  pass [01-2027] -> [2027-01]
+  pass [1-may-2020] -> [2020-05-01]
+  pass [None] -> []
+
+is_organization tests ...
+  pass [Joe Smith, , ] -> [No]
+  pass [ABC Company, , ] -> [Yes]
+  pass [Joe Company, 1/12/2001, ] -> [No]
+  pass [None, None, None] -> [No]
+
+tests complete
+
+```
 
 ### Run the mapper with a python module
 
