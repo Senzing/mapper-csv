@@ -102,7 +102,11 @@ If using the python module approach, complete the mapping by following the [Pyth
 
 Execute the csv_mapper script as follows ...
 ```console
-python csv_mapper.py -i input/test_set1.csv -m mappings/test_set1.map -o output/test_set1.json -l output/test_set1-statistics.json
+python csv_mapper.py \
+  -i input/test_set1.csv \
+  -m mappings/test_set1.map \
+  -o output/test_set1.json \
+  -l output/test_set1-statistics.json
 
 Processing input/test_set1.csv ...
  10 rows processed, 1 rows skipped, complete!               <--the header row was skipped
@@ -156,7 +160,7 @@ Please note you could also use the stream loader here https://github.com/Senzing
 
 ### Mapping file tutorial
 
-Review the [mappings/test_set1.map](mappings/test_set1.map). The majority of it was built by the csv_analyzer.
+Review the [mappings/test_set1.map](mappings/test_set1.map). It was built by the csv_analyzer based on the columns in the csv file.
 
 *Note: Remember when you ran the analyzer above and saved the current mapping file for this csv to mappings/test_set1.map.bk?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.*
 
@@ -308,9 +312,17 @@ Just like calculations above, the filter is a single line python expression refe
 
 ### Python template tutorial
 
-Review the [mappings/test_set1.py](mappings/test_set1.py). The majority of it was built by the csv_analyzer.
+Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_temp[late.py file.
 
 *Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
 
-### Input section
+
+
+### Initialization function
+
+
+
+### Map function
+
+
 
