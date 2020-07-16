@@ -1,10 +1,10 @@
 uniqueid,type,name,gender,dob,ssn,addr1,city,state,zip,create_date,status,value
 1001,company,ABC Company,u,,null,111 First,Las Vegas,NV,89111,1/1/01,Active,1000
 1002,individual,Bob Jones,u,2/2/92,333-33-3333,222 Second,Las Vegas,NV,89112,2/2/02,Inactive,2000
-1003,company,General Hospital,u,3/3/93,null,333 Third,Las Vegas,NV,89113,3/3/03,Active,3000
-1004,individual,Mary Smith,u,,null,444 Fourth,Las Vegas,NV,89114,4/4/04,Active,4000
+1003,company,General Hospital,u,,null,333 Third,Las Vegas,NV,89113,3/3/03,Active,3000
+1004,individual,Mary Smith,u,3/3/93,null,444 Fourth,Las Vegas,NV,89114,4/4/04,Active,4000
 1005,company,Peter  Anderson,u,,null,555 Fifth,Las Vegas,NV,89115,5/5/05,Active,5000
-1006,company,Cleveland Clinic,u,,666-66-6666,666 Sixth,Las Vegas,NV,89116,6/6/06,Active,6000
+1006,company,John Company,u,,666-66-6666,666 Sixth,Las Vegas,NV,89116,6/6/06,Active,6000
 1007,individual,Sally Sanders,u,,null,777 Seventh,Las Vegas,NV,89117,7/7/07,Active,7000
 1008,individual,City of Hope,u,,null,888 Eighth,Las Vegas,NV,89118,8/8/08,Inactive,8000
 1009,company,null,u,,null,,,,,,,
