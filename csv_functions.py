@@ -38,11 +38,7 @@ class csv_functions():
         #--ensure these lists exist
         keys = [
             "GARBAGE_VALUES", 
-            "ORGANIZATION_TOKENS", 
-            "PERSON_TOKENS", 
-            "SENZING_ATTRIBUTES",
-            "NAME_SPLIT_TOKENS",
-            "NAME_ENDER_TOKENS"
+            "SENZING_ATTRIBUTES"
         ]
         for key in keys:
             if key not in self.variantJson:
@@ -77,8 +73,6 @@ class csv_functions():
         self.dateFormats.append("%d-%b")
         self.dateFormats.append("%d/%b")
 
-        #--set iso country code size 
-        self.isoCountrySize = 'ISO3'
     
     #----------------------------------------
     def format_date(self, dateString, outputFormat = None):
@@ -107,156 +101,6 @@ class csv_functions():
             self.updateStat('GARBAGE_IN_FIELDS', attrName, newValue.upper())
             return ''
         return newValue
-
-    #-----------------------------------
-    def parse_name(self, nameString):
-        #--notes: clean name has already been done
-        #--       sorry names will be forced upper case
-        #--       returns a dictionary of names
-
-        #--remove in garbage expressions in the string
-        nameString = nameString.upper()
-        for garbageValue in self.variantData['GARBAGE_VALUES']:
-            if garbageValue in nameString:
-                self.updateStat('GARBAGE_IN_NAMES', garbageValue, nameString)
-                nameString = nameString.replace(garbageValue,'').strip()
-        newString = nameString
-
-        primaryNameTokens = []
-        secondaryNameTokens = []
-        referenceNameTokens = []
-
-        #--remove tokens in parenthesis
-        groupedStrings = re.findall('\(.*?\)',newString)
-        for groupedString in groupedStrings:
-            self.updateStat('GROUPED_STRINGS', '()', newString + ' | ' + groupedString)
-            newString = newString.replace(groupedString,'')
-            referenceNameTokens.append(groupedString)
-
-        #--split the name
-        theToken = None
-        split = 0
-        for token in newString.replace('.',' ').replace(',',' ').replace('-',' - ').replace('/',' / ').replace(';',' ; ').upper().split():
-            if split == 1:
-                secondaryNameTokens.append(token)
-            elif split == 2:
-                referenceNameTokens.append(token)
-            elif token in self.variantData['NAME_SPLIT_TOKENS']:
-                #--token is skipped
-                split=1
-                theToken = token
-            elif token in self.variantData['NAME_ENDER_TOKENS']:
-                primaryNameTokens.append(token)
-                split=2
-                theToken = token
-            else:
-                primaryNameTokens.append(token)
-
-        primaryNameStr = ' '.join(primaryNameTokens)
-        secondaryNameStr = ' '.join(secondaryNameTokens)
-        referenceNameStr = ' '.join(referenceNameTokens)
-
-        if secondaryNameStr:
-            self.updateStat('NAME_SPLITERS', theToken, nameString + ' -> ' + primaryNameStr + ' | ' + secondaryNameStr)
-        if referenceNameStr and split == 2:
-            self.updateStat('NAME_ENDERS', theToken, nameString + ' -> ' + primaryNameStr + ' | ' + referenceNameStr)
-
-        #--probable people parser
-        if pp:
-            #--pp.tag(name_str) # expected output: (OrderedDict([('PrefixMarital', 'Mr'), ('GivenName', 'George'), ('Nickname', '"Gob"'), ('Surname', 'Bluth'), ('SuffixGenerational', 'II')]), 'Person')
-            #--pp.tag(corp_str) # expected output: (OrderedDict([('CorporationName', 'Sitwell Housing'), ('CorporationLegalType', 'Inc')]), 'Corporation')
-            #--PrefixMarital
-            #--PrefixOther
-            #--GivenName
-            #--FirstInitial
-            #--MiddleName
-            #--MiddleInitial
-            #--Surname
-            #--LastInitial
-            #--SuffixGenerational
-            #--SuffixOther
-            #--Nickname
-            #--And
-            #--CorporationName
-            #--CorporationNameOrganization
-            #--CorporationLegalType
-            #--CorporationNamePossessiveOf
-            #--ShortForm
-            #--ProxyFor
-            #--AKA
-            try: 
-                taggedName, nameType = pp.tag(primaryNameStr)
-                isOrganization = False if nameType == 'Person' else True
-                self.updateStat('ProbablePeople', nameType, primaryNameStr)
-            except: 
-                isOrganization = self.is_organization_name(primaryNameStr)
-
-        #--home grown parser
-        else:
-            isOrganization = self.is_organization_name(primaryNameStr)
-
-        if isOrganization:
-            primaryNameOrg = primaryNameStr
-            secondaryNameOrg = secondaryNameStr
-            primaryNameFull = ''
-            secondaryNameFull = ''
-        else:    
-            primaryNameOrg = ''
-            secondaryNameOrg = ''
-            primaryNameFull = primaryNameStr
-            secondaryNameFull = secondaryNameStr
-
-        nameList = []
-        nameList.append({'IS_ORGANIZATION': True})
-        nameList.append({'PRIMARY_NAME_ORG': primaryNameOrg})
-        nameList.append({'SECONDARY_NAME_ORG': secondaryNameOrg})
-        nameList.append({'PRIMARY_NAME_FULL': primaryNameFull})
-        nameList.append({'SECONDARY_NAME_FULL': secondaryNameFull})
-        nameList.append({'REFERENCE_NAME': referenceNameStr})
-
-        return nameList
-    
-
-    #-----------------------------------
-    def parse_provider_column(self, _str):
-        if len(str(_str).strip()) == 0:
-            return ''
-        #example input: PHA410230, PHA393440, 1821137118
-        #example ouput: "NPI_NUMBERS": [{"NPI_NUMBER": "PHA410230"}, {"NPI_NUMBER": "PHA393440"}, {"NPI_NUMBER": "1821137118"}]
-        numberList = [{"NPI_NUMBER": x.strip()} for x in _str.split(',')]
-        return numberList
-
-    #-----------------------------------
-    def is_organization_name(self, nameString):
-        tokenCnt = 0
-        priorTokens = []
-        for token in nameString.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
-            if token in self.variantData['ORGANIZATION_TOKENS']:
-                self.updateStat('ORGANIZATION_TOKENS', token, nameString)
-                return True
-            elif ' '.join(priorTokens[-2:]) in self.variantData['ORGANIZATION_TOKENS']:
-                self.updateStat('ORGANIZATION_TOKENS', ' '.join(priorTokens[-2:]), nameString)
-                return True
-            elif ' '.join(priorTokens[-3:]) in self.variantData['ORGANIZATION_TOKENS']:
-                self.updateStat('ORGANIZATION_TOKENS', ' '.join(priorTokens[-3:]), nameString)
-                return True
-            priorTokens.append(token)
-            tokenCnt += 1
-        if tokenCnt > 0:
-            self.updateStat('PERSONS_BY_TOKEN_COUNT', tokenCnt, nameString)
-
-        return False
-
-    #-----------------------------------
-    def is_person_name(self, nameString):
-        priorTokens = []
-        for token in nameString.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
-            if token in self.variantData['PERSON_TOKENS'] or \
-                ' '.join(priorTokens[-2:]) in self.variantData['PERSON_TOKENS'] or \
-                ' '.join(priorTokens[-3:]) in self.variantData['PERSON_TOKENS']:
-                return True
-            priorTokens.append(token)
-        return False
 
     #-----------------------------------
     def is_senzing_attribute(self, attrName):
