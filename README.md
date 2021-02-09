@@ -14,16 +14,16 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 1. [Installation](#installation)
 1. [Run the analyzer](#run-the-analyzer)
 1. [Review the statistics](#review-the-statistics)
+1. [Python module tutorial](#python-module-tutorial)
+    1. [Adding your own functions](#adding-your-own-functions)
+    1. [Update the mappings](#update-the-mappings)
+    1. [Running the python module standalone](#Running-the-python-module-standalone)
+    1. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
 1. [Mapping file tutorial](#mapping-file-tutorial)
     1. [Input section](#input-section)
     1. [Calculations section](#calculations-section)
     1. [Output section](#output-section)
     1. [Run the mapper with a mapping file](#run-the-mapper-with-a-mapping-file)
-1. [Python module tutorial](#python-module-tutorial)
-    1. [Adding your own functions](#adding-your-own-functions)
-    1. [Update the mappings](#update-the-mappings)
-    1. [Standalone testing](#standalone-testing)
-    1. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
 1. [Loading into Senzing](#loading-into-senzing)
 
 ### Prerequisites
@@ -70,7 +70,10 @@ python csv_analyzer.py \
 - The -d parameter can be used to set the csv column delimiter manually
 - The -e parameter can be used to set the encoding to sdomething like latin-1 if needed
 
-*Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings using the -m map[ping file method.  Python programmers will likley want to use the -p python module method as they have more complete control over the process.*
+**Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python 
+module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings 
+using the -m mapping file method.  Python programmers will likley want to use the -p python module method 
+as they have more complete control over the process.**
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
@@ -89,6 +92,178 @@ The purpose of this analysis helps you to determine what columns to map in the f
 - Lets say you are hoping to to match on ssn plus name. But when you look at the SSN column statistics you find that it is only 10% populated.  In this case you will want to find more values to map.
 - Lets say you want to use the SSN column to match and it is 100% populated. But it is only 10% unique meaning a lot of the records have the same SSN.  This may be ok, but it certainly indicates that you are looking at a list of transactions rather than a list of entities.
 - Lets say you have last_name and first_name columns but the first_name column is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
+
+### Python module tutorial
+
+If using the python module approach, complete the following steps ...
+
+Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.
+
+*Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
+
+### Adding your own functions
+
+In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
+
+Step 1: Add the is_organization function just under the format_dob function.
+```
+#-----------------------------------
+def is_organization(self, raw_name, raw_dob, raw_ssn):
+    if raw_dob or raw_ssn or not raw_name:
+        return False
+    prior_tokens = []
+    for token in raw_name.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
+        if token in self.variant_data['ORGANIZATION_TOKENS']:
+            return True
+        elif ' '.join(prior_tokens[-2:]) in self.variant_data['ORGANIZATION_TOKENS']:
+            return True
+        elif ' '.join(prior_tokens[-3:]) in self.variant_data['ORGANIZATION_TOKENS']:
+            return True
+        prior_tokens.append(token)
+    return False
+``` 
+Step 2: Add the configuration for it to the load_reference_data() function which is called by the module's initialization function at the top.  Not all functions will require reference data.
+```
+#--organization tokens
+self.variant_data['ORGANIZATION_TOKENS'] = []
+self.variant_data['ORGANIZATION_TOKENS'].append('COMPANY')
+self.variant_data['ORGANIZATION_TOKENS'].append('HOSPITAL')
+self.variant_data['ORGANIZATION_TOKENS'].append('CLINIC')
+self.variant_data['ORGANIZATION_TOKENS'].append('CITY OF')
+```
+
+### Update the mappings
+Filters, calculations and mappings are all done in the map() function which is called for every record.  The following changes were made for this test file ...
+
+Step 1: A filter was added in the filter section ...
+```
+#--place any filters needed here
+if not raw_data['name']:
+    return None
+```
+
+Step 2: Call the is_organization function in the calculations section ...
+```
+#--place any calculations needed here
+is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
+```
+
+Step 3: Update the new_data python dictionary by adding, changing or deleting its values.  The following code changes were made for this tutorial ...
+```
+json_data['DATA_SOURCE'] = 'TEST'  #-- set the data source
+
+json_data['RECORD_ID'] = raw_data['uniqueid'] #--set the record_id
+
+#json_data['uniqueid'] = raw_data['uniqueid']  #--already mapped as record_id
+
+# json_data['type'] = raw_data['type']  #--use our calculation here instead
+json_data['RECORD_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
+
+
+#json_data['name'] = raw_data['name'] #--commented out in favor of ...
+if is_organization:
+    json_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
+else:
+    json_data['NAME_FULL'] = raw_data['name'] #--name_full if not
+
+#json_data['gender'] = raw_data['gender'] #--commented out as no value
+
+json_data['DATE_OF_BIRTH'] = raw_data['dob'] #--mapped
+
+json_data['SSN_NUMBER'] = raw_data['ssn'] #--mapped
+
+if is_organization:
+    json_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
+
+json_data['ADDR_LINE1'] = raw_data['addr1'] #--mapped
+
+json_data['ADDR_CITY'] = raw_data['city'] #--mapped
+
+json_data['ADDR_STATE'] = raw_data['state'] #--mapped
+
+json_data['ADDR_POSTAL_CODE'] = raw_data['zip'] #--mapped
+
+json_data['important_date'] = raw_data['create_date'] #--kept and standardized name
+
+json_data['important_status'] = raw_data['status'] #--kept and standardized name
+
+#json_data['value'] = raw_data['value'] #--comment out as un-needed
+
+```
+
+### Running the python module standalone
+
+The python module is really a portable class that can be called from anywhere including the csv_mapper.py 
+included in this github project.  
+
+It can even be incorporated into another workflow entirely that reads the raw csv file, maps it with this 
+mapper class and places them onto a queue such as sqs or rabbit mq.  See ...
+- https://github.com/Senzing/docker-compose-demo
+- https://github.com/Senzing/aws-cloudformation-ecs
+This way you don't have to create interim json files for loading!
+
+But for testing it can also be run all by itself as it contains its own simple file reader.  
+Type the following to test the mapper standalone ...
+```
+python mappings/test_set1.py \
+  -i input/test_set1.csv 
+  -o output/test_set1.json 
+  -l output/test_set1-stats.json 
+```
+You will get the following output ...
+```
+9 rows processed, 8 rows written, completed in 0.0 minutes
+
+Mapping stats written to output/test_set1-stats.json
+```
+You can then review the resulting json and mapping stats file to ensure everything is working as expected!
+
+### Run the mapper with a python module
+
+Execute the csv_mapper script as follows ...
+```console
+python csv_mapper.py \
+  -i input/test_set1.csv \
+  -p mappings/test_set1.py \
+  -o output/test_set1.json \
+  -l output/test_set1-statistics.json
+
+Processing input/test_set1.csv ...
+ 10 rows processed, 2 rows skipped, complete!               <--both the header and empty rows were skipped
+
+OUTPUT #0 ...
+  8 rows written
+  0 rows skipped
+
+ MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
+  data_source...................          8 100.0 %
+  entity_type...................          8 100.0 %
+  record_id.....................          8 100.0 %
+  name_org......................          3 37.5 %
+  addr_type.....................          3 37.5 %
+  addr_line1....................          8 100.0 %
+  addr_city.....................          8 100.0 %
+  addr_state....................          8 100.0 %
+  addr_postal_code..............          8 100.0 %
+  name_full.....................          5 62.5 %
+  date_of_birth.................          2 25.0 %
+  ssn_number....................          2 25.0 %
+
+ UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
+  important_date................          8 100.0 %
+  important_status..............          8 100.0 %
+
+Mapping stats written to output/test_set1-statistics.json
+
+process completed!
+```
+The -i parameter is for the csv file you want to map into json.
+The -o parameter is for the name of the json records to.
+The -p parameter is for the name of the completed python module file to use.
+
+You will want to review the statistics it produces and make sure it makes sense to you ... 
+- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.
+- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.
 
 ### Mapping file tutorial
 
@@ -289,213 +464,6 @@ You will want to review the statistics it produces and make sure it makes sense 
 - Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.
 - Should any of the unmapped attributes really be mapped?  Maybe there is a typo.
 - Should any of the columns ignored be included?
-
-### Python module tutorial
-
-If using the python module approach, complete the following steps ...
-
-Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.
-
-*Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
-
-### Adding your own functions
-
-In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
-
-Step 1: Add the is_organization function just under the format_date function.
-```
-#-----------------------------------
-def is_organization(self, raw_name, raw_dob, raw_ssn):
-    if raw_dob or raw_ssn or not raw_name:
-        return False
-    prior_tokens = []
-    for token in raw_name.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
-        if token in self.variant_data['ORGANIZATION_TOKENS']:
-            return True
-        elif ' '.join(prior_tokens[-2:]) in self.variant_data['ORGANIZATION_TOKENS']:
-            return True
-        elif ' '.join(prior_tokens[-3:]) in self.variant_data['ORGANIZATION_TOKENS']:
-            return True
-        prior_tokens.append(token)
-    return False
-``` 
-Step 2: Add the configuration for it to the load_reference_data() function which is called by the module's initialization function at the top.  Not all functions will require reference data.
-```
-#--organization tokens
-self.variant_data['ORGANIZATION_TOKENS'] = []
-self.variant_data['ORGANIZATION_TOKENS'].append('COMPANY')
-self.variant_data['ORGANIZATION_TOKENS'].append('HOSPITAL')
-self.variant_data['ORGANIZATION_TOKENS'].append('CLINIC')
-self.variant_data['ORGANIZATION_TOKENS'].append('CITY OF')
-```
-Step 3: Add some unit tests for the function at the bottom.  Its just a good practice!
-```
-    print('\nis_organization tests ...')
-    tests = []
-    tests.append(['Joe Smith', '', '', 'No'])
-    tests.append(['ABC Company', '','', 'Yes'])
-    tests.append(['Joe Company', '1/12/2001','', 'No'])
-    tests.append([None, None, None, 'No'])
-    for test in tests:
-        result = 'Yes' if test_mapper.is_organization(test[0], test[1], test[2]) else 'No'
-        if result == test[3]:
-            print('\t%s [%s, %s, %s] -> [%s]' % ('pass', test[0], test[1], test[2], test[3]))
-        else:
-            print('\t%s [%s, %s, %s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], test[2], test[3], result))
-```
-
-### Update the mappings
-Filters, calculations and mappings are all done in the map() function which is called for every record.  The following changes were made for this test file ...
-
-Step 1: A filter was added in the filter section ...
-```
-#--place any filters needed here
-if not raw_data['name']:
-    return None
-```
-
-Step 2: Call the is_organization function in the calculations section ...
-```
-#--place any calculations needed here
-is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
-```
-
-Step 3: Update the new_data python dictionary by adding, changing or deleting its values.  The following code changes were made for this tutorial ...
-```
-new_data['DATA_SOURCE'] = 'TEST'  #-- set the data source
-
-new_data['ENTITY_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
-
-new_data['RECORD_ID'] = raw_data['uniqueid'] #--set the record_id
-
-#new_data['name'] = raw_data['name'] #--commented out in favor of ...
-if is_organization:
-    new_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
-else:
-    new_data['NAME_FULL'] = raw_data['name'] #--name_full if not
-
-#new_data['gender'] = raw_data['gender'] #--commented out as no value
-
-new_data['DATE_OF_BIRTH'] = raw_data['dob'] #--mapped
-
-new_data['SSN_NUMBER'] = raw_data['ssn'] #--mapped
-
-if is_organization:
-    new_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
-
-new_data['ADDR_LINE1'] = raw_data['addr1'] #--mapped
-
-new_data['ADDR_CITY'] = raw_data['city'] #--mapped
-
-new_data['ADDR_STATE'] = raw_data['state'] #--mapped
-
-new_data['ADDR_POSTAL_CODE'] = raw_data['zip'] #--mapped
-
-new_data['important_date'] = raw_data['create_date'] #--kept and standardized name
-
-new_data['important_status'] = raw_data['status'] #--kept and standardized name
-
-#new_data['value'] = raw_data['value'] #--comment out as un-needed
-
-```
-
-### Standalone testing
-
-The module will unit test itself if executed standalone.  A sample record was captured by the analyzer and is sent to the map() function for testing.  .  It is just meant to be a quick sanity check, but feel free to adjust the values in this record to test your code.
-
-Each of the special functions is also unit tested. If you add your own functions, it is good practice to add tests for it here.
-
-You would simply execute it standalione like so ...
-```
-python mappings/test_set1.py
-
-Initialize mapper class
-
-map function result ...
-
-{
-    "DATA_SOURCE": "TEST",
-    "ENTITY_TYPE": "ORGANIZATION",
-    "RECORD_ID": "1001",
-    "NAME_ORG": "ABC Company",
-    "DATE_OF_BIRTH": "",
-    "SSN_NUMBER": "",
-    "ADDR_TYPE": "BUSINESS",
-    "ADDR_LINE1": "111 First",
-    "ADDR_CITY": "Las Vegas",
-    "ADDR_STATE": "NV",
-    "ADDR_POSTAL_CODE": "89111",
-    "important_date": "1/1/01",
-    "important_status": "Active"
-}
-
-clean_value tests ...
-  pass [ABC    COMPANY] -> [ABC COMPANY]
-  pass [ n/a] -> []
-  pass [None] -> []
-
-format_date tests ...
-  pass [11/12/1927] -> [1927-11-12]
-  pass [01-2027] -> [2027-01]
-  pass [1-may-2020] -> [2020-05-01]
-  pass [None] -> []
-
-is_organization tests ...
-  pass [Joe Smith, , ] -> [No]
-  pass [ABC Company, , ] -> [Yes]
-  pass [Joe Company, 1/12/2001, ] -> [No]
-  pass [None, None, None] -> [No]
-
-tests complete
-
-```
-
-### Run the mapper with a python module
-
-Execute the csv_mapper script as follows ...
-```console
-python csv_mapper.py \
-  -i input/test_set1.csv \
-  -p mappings/test_set1.py \
-  -o output/test_set1.json \
-  -l output/test_set1-statistics.json
-
-Processing input/test_set1.csv ...
- 10 rows processed, 2 rows skipped, complete!               <--both the header and empty rows were skipped
-
-OUTPUT #0 ...
-  8 rows written
-  0 rows skipped
-
- MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
-  data_source...................          8 100.0 %
-  entity_type...................          8 100.0 %
-  record_id.....................          8 100.0 %
-  name_org......................          3 37.5 %
-  addr_type.....................          3 37.5 %
-  addr_line1....................          8 100.0 %
-  addr_city.....................          8 100.0 %
-  addr_state....................          8 100.0 %
-  addr_postal_code..............          8 100.0 %
-  name_full.....................          5 62.5 %
-  date_of_birth.................          2 25.0 %
-  ssn_number....................          2 25.0 %
-
- UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
-  important_date................          8 100.0 %
-  important_status..............          8 100.0 %
-
-Mapping stats written to output/test_set1-statistics.json
-
-process completed!
-```
-The -i parameter is for the csv file you want to map into json.
-The -o parameter is for the name of the json records to.
-The -p parameter is for the name of the completed python module file to use.
-
-You will want to review the statistics it produces and make sure it makes sense to you ... 
-- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.
-- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.
 
 ### Loading into Senzing
 

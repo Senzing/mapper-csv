@@ -187,6 +187,8 @@ def analyzeFile():
         else:
             currentFile['csvDialect'] = 'excel'
 
+        mappingDoc['input']['csvDialect'] = currentFile['csvDialect']
+
         #--set the reader (csv cannot be used for multi-char delimiters)
         if currentFile['csvDialect'] != 'multi':
             currentFile['reader'] = csv.reader(currentFile['handle'], dialect=currentFile['csvDialect'])
@@ -358,17 +360,25 @@ def analyzeFile():
         codeLines = []
         with open('python_template.py', 'r') as f:
             for line in f:
-                if line.strip() == "self.delimiter = '<supply>'":
-                    if 'fieldDelimiter' in mappingDoc['input'] and mappingDoc['input']['fieldDelimiter']:
-                        line = line.replace('<supply>', mappingDoc['input']['fieldDelimiter'])
-                        codeLines.append(line)
 
-                elif line.strip() == "self.encoding = '<supply>'":
-                    if 'fileEncoding' in mappingDoc['input'] and mappingDoc['input']['fileEncoding']:
-                        line = line.replace('<supply>', mappingDoc['input']['fileEncoding'])
-                        codeLines.append(line)
+                if line.strip() == "input_file = '<input_file_name>'":
+                    codeLines.append(line.replace('<input_file_name>', inputFileName))
 
-                elif line.strip() == "new_data['RECORD_ID'] = '<supply>'":
+                elif line.strip() == "csv_dialect = '<dialect>'":
+                    if mappingDoc['input']['csvDialect'] == 'pipe':
+                        registerDialect = "csv.register_dialect('pipe', delimiter = '|')"
+                    elif mappingDoc['input']['csvDialect'] == 'other':
+                        registerDialect = "csv.register_dialect('other', delimiter = '" + mappingDoc['input']['fieldDelimiter'] + "')"
+                    else:
+                        registerDialect = None
+                    if registerDialect:
+                        codeLines.append((' ' * (len(line) - len(line.strip()) -1)) + registerDialect + '\n')
+                    codeLines.append(line.replace('<dialect>', mappingDoc['input']['csvDialect']))
+
+                elif line.strip() == "input_file_handle = open(args.input_file, 'r')" and mappingDoc['input']['fileEncoding']:
+                    codeLines.append(line.replace(')', ", encoding='%s')" % mappingDoc['input']['fileEncoding']))
+
+                elif line.strip() == "json_data['RECORD_ID'] = '<supply>'":
                     if not bestRecordID.startswith('<'):
                         line = line.replace("'<supply>'", "raw_data['%s']" % bestRecordID)
                     codeLines.append(line)
@@ -381,7 +391,7 @@ def analyzeFile():
                         codeLines.append("        # %s populated, %s unique\n" % (columnMapping['statistics']['populated%'], columnMapping['statistics']['unique%']))
                         for item in columnMapping['statistics']['top5values']:
                             codeLines.append("        #      %s\n" % item)
-                        codeLines.append("        new_data['%s'] = raw_data['%s']\n" % (columnMapping['statistics']['columnName'], columnMapping['statistics']['columnName']))
+                        codeLines.append("        json_data['%s'] = raw_data['%s']\n" % (columnMapping['statistics']['columnName'], columnMapping['statistics']['columnName']))
 
                 elif line.strip().startswith('raw_data = {'):
                     if not testRecord:
@@ -406,7 +416,7 @@ def analyzeFile():
             print('Could not write to %s' % pythonModuleFile)
             print(e)
 
-        print('\nPython module written to %s' % mappingFileName)
+        print('\nPython module written to %s' % pythonModuleFile)
 
     return shutDown
 

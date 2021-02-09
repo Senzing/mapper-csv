@@ -1,6 +1,14 @@
+import sys
+import os
+import argparse
 import csv
 import json
+import time
 from datetime import datetime
+from dateutil.parser import parse as dateparse
+import signal
+import random
+
 
 #=========================
 class mapper():
@@ -8,14 +16,12 @@ class mapper():
     #----------------------------------------
     def __init__(self):
 
-        self.delimiter = ','
-
-        #--load any reference data for supporting functions
         self.load_reference_data()
+        self.stat_pack = {}
 
     #----------------------------------------
     def map(self, raw_data):
-        new_data = {}
+        json_data = {}
 
         #--clean values
         for attribute in raw_data:
@@ -29,11 +35,11 @@ class mapper():
         is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
 
         #--mandatory attributes
-        new_data['DATA_SOURCE'] = 'TEST'
-        new_data['ENTITY_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON'
+        json_data['DATA_SOURCE'] = 'TEST'
+        json_data['ENTITY_TYPE'] = 'GENERIC'
 
         #--the record_id should be unique, remove this mapping if there is not one 
-        new_data['RECORD_ID'] = raw_data['uniqueid']
+        json_data['RECORD_ID'] = raw_data['uniqueid']
 
         #--column mappings
 
@@ -44,13 +50,15 @@ class mapper():
         #      1003 (1)
         #      1004 (1)
         #      1005 (1)
-        #new_data['uniqueid'] = raw_data['uniqueid']
+        #json_data['uniqueid'] = raw_data['uniqueid']  #--already mapped as record_id
 
         # columnName: type
         # 100.0 populated, 22.22 unique
         #      company (5)
         #      individual (4)
-        #new_data['type'] = raw_data['type']
+        # json_data['type'] = raw_data['type']  #--use our calculation here instead
+        json_data['RECORD_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
+
 
         # columnName: name
         # 88.89 populated, 100.0 unique
@@ -59,31 +67,31 @@ class mapper():
         #      General Hospital (1)
         #      Mary Smith (1)
         #      Peter  Anderson (1)
-        #new_data['name'] = raw_data['name']
+        #json_data['name'] = raw_data['name'] #--commented out in favor of ...
         if is_organization:
-            new_data['NAME_ORG'] = raw_data['name']
+            json_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
         else:
-            new_data['NAME_FULL'] = raw_data['name']
+            json_data['NAME_FULL'] = raw_data['name'] #--name_full if not
 
         # columnName: gender
         # 100.0 populated, 11.11 unique
         #      u (9)
-        #new_data['gender'] = raw_data['gender']
+        #json_data['gender'] = raw_data['gender'] #--commented out as no value
 
         # columnName: dob
         # 22.22 populated, 100.0 unique
         #      2/2/92 (1)
         #      3/3/93 (1)
-        new_data['DATE_OF_BIRTH'] = raw_data['dob']
+        json_data['DATE_OF_BIRTH'] = raw_data['dob']
 
         # columnName: ssn
         # 22.22 populated, 100.0 unique
         #      333-33-3333 (1)
         #      666-66-6666 (1)
-        new_data['SSN_NUMBER'] = raw_data['ssn']
+        json_data['SSN_NUMBER'] = raw_data['ssn']
 
         if is_organization:
-            new_data['ADDR_TYPE'] = 'BUSINESS'
+            json_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
 
         # columnName: addr1
         # 88.89 populated, 100.0 unique
@@ -92,17 +100,17 @@ class mapper():
         #      333 Third (1)
         #      444 Fourth (1)
         #      555 Fifth (1)
-        new_data['ADDR_LINE1'] = raw_data['addr1']
+        json_data['ADDR_LINE1'] = raw_data['addr1']
 
         # columnName: city
         # 88.89 populated, 12.5 unique
         #      Las Vegas (8)
-        new_data['ADDR_CITY'] = raw_data['city']
+        json_data['ADDR_CITY'] = raw_data['city']
 
         # columnName: state
         # 88.89 populated, 12.5 unique
         #      NV (8)
-        new_data['ADDR_STATE'] = raw_data['state']
+        json_data['ADDR_STATE'] = raw_data['state']
 
         # columnName: zip
         # 88.89 populated, 100.0 unique
@@ -111,7 +119,7 @@ class mapper():
         #      89113 (1)
         #      89114 (1)
         #      89115 (1)
-        new_data['ADDR_POSTAL_CODE'] = raw_data['zip']
+        json_data['ADDR_POSTAL_CODE'] = raw_data['zip']
 
         # columnName: create_date
         # 88.89 populated, 100.0 unique
@@ -120,13 +128,13 @@ class mapper():
         #      3/3/03 (1)
         #      4/4/04 (1)
         #      5/5/05 (1)
-        new_data['important_date'] = raw_data['create_date']
+        json_data['important_date'] = raw_data['create_date']
 
         # columnName: status
         # 88.89 populated, 25.0 unique
         #      Active (6)
         #      Inactive (2)
-        new_data['important_status'] = raw_data['status']
+        json_data['important_status'] = raw_data['status']
 
         # columnName: value
         # 88.89 populated, 100.0 unique
@@ -135,33 +143,15 @@ class mapper():
         #      3000 (1)
         #      4000 (1)
         #      5000 (1)
-        #new_data['value'] = raw_data['value']
+        #json_data['value'] = raw_data['value']
 
-        return new_data
+        #--capture the stats
+        self.capture_mapped_stats(json_data)
+
+        return json_data
 
     #----------------------------------------
     def load_reference_data(self):
-
-        #--supported date formats
-        self.date_formats = []
-        self.date_formats.append("%Y-%m-%d")
-        self.date_formats.append("%m/%d/%Y")
-        self.date_formats.append("%d/%m/%Y")
-        self.date_formats.append("%d-%b-%Y")
-        self.date_formats.append("%Y")
-        self.date_formats.append("%Y-%M")
-        self.date_formats.append("%m-%Y")
-        self.date_formats.append("%m/%Y")
-        self.date_formats.append("%b-%Y")
-        self.date_formats.append("%b/%Y")
-        self.date_formats.append("%m-%d")
-        self.date_formats.append("%m/%d")
-        self.date_formats.append("%b-%d")
-        self.date_formats.append("%b/%d")
-        self.date_formats.append("%d-%m")
-        self.date_formats.append("%d/%m")
-        self.date_formats.append("%d-%b")
-        self.date_formats.append("%d/%b")
 
         #--garabage values
         self.variant_data = {}
@@ -184,22 +174,24 @@ class mapper():
         return new_value
 
     #----------------------------------------
-    def format_date(self, raw_date, output_format = None):
-        for date_format in self.date_formats:
-            try: new_date = datetime.strptime(raw_date, date_format)
-            except: pass
-            else: 
-                if not output_format:
-                    if len(raw_date) == 4:
-                        output_format = '%Y'
-                    elif len(raw_date) in (5,6):
-                        output_format = '%m-%d'
-                    elif len(raw_date) in (7,8):
-                        output_format = '%Y-%m'
-                    else:
-                        output_format = '%Y-%m-%d'
-                return datetime.strftime(new_date, output_format)
-        return ''
+    def format_dob(self, raw_date):
+        try: new_date = dateparse(raw_date)
+        except: return ''
+
+        #--correct for prior century dates
+        if new_date.year > datetime.now().year:
+            new_date = datetime(new_date.year - 100, new_date.month, new_date.day)
+
+        if len(raw_date) == 4:
+            output_format = '%Y'
+        elif len(raw_date) in (5,6):
+            output_format = '%m-%d'
+        elif len(raw_date) in (7,8):
+            output_format = '%Y-%m'
+        else:
+            output_format = '%Y-%m-%d'
+
+        return datetime.strftime(new_date, output_format)
 
     #-----------------------------------
     def is_organization(self, raw_name, raw_dob, raw_ssn):
@@ -216,66 +208,104 @@ class mapper():
             prior_tokens.append(token)
         return False
 
+    #----------------------------------------
+    def update_stat(self, cat1, cat2, example=None):
+
+        if cat1 not in self.stat_pack:
+            self.stat_pack[cat1] = {}
+        if cat2 not in self.stat_pack[cat1]:
+            self.stat_pack[cat1][cat2] = {}
+            self.stat_pack[cat1][cat2]['count'] = 0
+
+        self.stat_pack[cat1][cat2]['count'] += 1
+        if example:
+            if 'examples' not in self.stat_pack[cat1][cat2]:
+                self.stat_pack[cat1][cat2]['examples'] = []
+            if example not in self.stat_pack[cat1][cat2]['examples']:
+                if len(self.stat_pack[cat1][cat2]['examples']) < 5:
+                    self.stat_pack[cat1][cat2]['examples'].append(example)
+                else:
+                    randomSampleI = random.randint(2, 4)
+                    self.stat_pack[cat1][cat2]['examples'][randomSampleI] = example
+        return
+
+    #----------------------------------------
+    def capture_mapped_stats(self, json_data):
+
+        if 'DATA_SOURCE' in json_data:
+            data_source = json_data['DATA_SOURCE']
+        else:
+            data_source = 'UNKNOWN_DSRC'
+
+        for key1 in json_data:
+            if type(json_data[key1]) != list:
+                self.update_stat(data_source, key1, json_data[key1])
+            else:
+                for subrecord in json_data[key1]:
+                    for key2 in subrecord:
+                        self.update_stat(data_source, key2, subrecord[key2])
+
+#----------------------------------------
+def signal_handler(signal, frame):
+    print('USER INTERUPT! Shutting down ... (please wait)')
+    global shut_down
+    shut_down = True
+    return
+
 #----------------------------------------
 if __name__ == "__main__":
+    proc_start_time = time.time()
+    shut_down = False   
+    signal.signal(signal.SIGINT, signal_handler)
 
-    print('\nInitialize mapper class')
-    test_mapper = mapper()
+    input_file = 'input/test_set1.csv'
+    csv_dialect = 'excel'
 
-    print('\nmap function result ...')
-    raw_data = {}
-    raw_data["uniqueid"] = "1001"
-    raw_data["type"] = "company"
-    raw_data["name"] = "ABC Company"
-    raw_data["gender"] = "u"
-    raw_data["dob"] = ""
-    raw_data["ssn"] = "null"
-    raw_data["addr1"] = "111 First"
-    raw_data["city"] = "Las Vegas"
-    raw_data["state"] = "NV"
-    raw_data["zip"] = "89111"
-    raw_data["create_date"] = "1/1/01"
-    raw_data["status"] = "Active"
-    raw_data["value"] = "1000"
-    test_result = test_mapper.map(raw_data)
-    print('\n' + json.dumps(test_result, indent=4))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input_file', dest='input_file', default = input_file, help='the name of the input file')
+    parser.add_argument('-o', '--output_file', dest='output_file', help='the name of the output file')
+    parser.add_argument('-l', '--log_file', dest='log_file', help='optional name of the statistics log file')
+    args = parser.parse_args()
 
-    print('\nclean_value tests ...')
-    tests = []
-    tests.append(['ABC    COMPANY', 'ABC COMPANY'])
-    tests.append([' n/a', ''])
-    tests.append([None, ''])
-    for test in tests:
-        result = test_mapper.clean_value(test[0])
-        if result == test[1]:
-            print('\t%s [%s] -> [%s]' % ('pass', test[0], test[1]))
-        else:
-            print('\t%s [%s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], result))
+    if not args.input_file or not os.path.exists(args.input_file):
+        print('\nPlease supply a valid input file name on the command line\n')
+        sys.exit(1)
+    if not args.output_file:
+        print('\nPlease supply a valid output file name on the command line\n') 
+        sys.exit(1)
 
-    print('\nformat_date tests ...')
-    tests = []
-    tests.append(['11/12/1927', '1927-11-12'])
-    tests.append(['01-2027', '2027-01'])
-    tests.append(['1-may-2020', '2020-05-01'])
-    tests.append([None, ''])
-    for test in tests:
-        result = test_mapper.format_date(test[0])
-        if result == test[1]:
-            print('\t%s [%s] -> [%s]' % ('pass', test[0], test[1]))
-        else:
-            print('\t%s [%s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], result))
+    input_file_handle = open(args.input_file, 'r')
+    output_file_handle = open(args.output_file, 'w', encoding='utf-8')
+    mapper = mapper()
 
-    print('\nis_organization tests ...')
-    tests = []
-    tests.append(['Joe Smith', '', '', 'No'])
-    tests.append(['ABC Company', '','', 'Yes'])
-    tests.append(['Joe Company', '1/12/2001','', 'No'])
-    tests.append([None, None, None, 'No'])
-    for test in tests:
-        result = 'Yes' if test_mapper.is_organization(test[0], test[1], test[2]) else 'No'
-        if result == test[3]:
-            print('\t%s [%s, %s, %s] -> [%s]' % ('pass', test[0], test[1], test[2], test[3]))
-        else:
-            print('\t%s [%s, %s, %s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], test[2], test[3], result))
+    input_row_count = 0
+    output_row_count = 0
+    for input_row in csv.DictReader(input_file_handle, dialect=csv_dialect):
+        input_row_count += 1
 
-    print ('\ntests complete\n')
+        json_data = mapper.map(input_row)
+        if json_data:
+            output_file_handle.write(json.dumps(json_data) + '\n')
+            output_row_count += 1
+
+        if input_row_count % 1000 == 0:
+            print('%s rows processed, %s rows written' % (input_row_count, output_row_count))
+        if shut_down:
+            break
+
+    elapsed_mins = round((time.time() - proc_start_time) / 60, 1)
+    run_status = ('completed in' if not shut_down else 'aborted after') + ' %s minutes' % elapsed_mins
+    print('%s rows processed, %s rows written, %s\n' % (input_row_count, output_row_count, run_status))
+
+    output_file_handle.close()
+    input_file_handle.close()
+
+    #--write statistics file
+    if args.log_file: 
+        with open(args.log_file, 'w') as outfile:
+            json.dump(mapper.stat_pack, outfile, indent=4, sort_keys = True)
+        print('Mapping stats written to %s\n' % args.log_file)
+
+
+    sys.exit(0)
+

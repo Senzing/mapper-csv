@@ -1,6 +1,14 @@
+import sys
+import os
+import argparse
 import csv
 import json
+import time
 from datetime import datetime
+from dateutil.parser import parse as dateparse
+import signal
+import random
+
 
 #=========================
 class mapper():
@@ -8,15 +16,12 @@ class mapper():
     #----------------------------------------
     def __init__(self):
 
-        self.delimiter = '<supply>'
-        self.encoding = '<supply>'
-
-        #--load any reference data for supporting functions
         self.load_reference_data()
+        self.stat_pack = {}
 
     #----------------------------------------
     def map(self, raw_data):
-        new_data = {}
+        json_data = {}
 
         #--clean values
         for attribute in raw_data:
@@ -27,39 +32,21 @@ class mapper():
         #--place any calculations needed here
 
         #--mandatory attributes
-        new_data['DATA_SOURCE'] = '<supply>'
-        new_data['ENTITY_TYPE'] = 'GENERIC'
+        json_data['DATA_SOURCE'] = '<supply>'
+        json_data['ENTITY_TYPE'] = 'GENERIC'
 
         #--the record_id should be unique, remove this mapping if there is not one 
-        new_data['RECORD_ID'] = '<remove_or_supply>'
+        json_data['RECORD_ID'] = '<remove_or_supply>'
 
         #--column mappings
 
-        return new_data
+        #--capture the stats
+        self.capture_mapped_stats(json_data)
+
+        return json_data
 
     #----------------------------------------
     def load_reference_data(self):
-
-        #--supported date formats
-        self.date_formats = []
-        self.date_formats.append("%Y-%m-%d")
-        self.date_formats.append("%m/%d/%Y")
-        self.date_formats.append("%d/%m/%Y")
-        self.date_formats.append("%d-%b-%Y")
-        self.date_formats.append("%Y")
-        self.date_formats.append("%Y-%M")
-        self.date_formats.append("%m-%Y")
-        self.date_formats.append("%m/%Y")
-        self.date_formats.append("%b-%Y")
-        self.date_formats.append("%b/%Y")
-        self.date_formats.append("%m-%d")
-        self.date_formats.append("%m/%d")
-        self.date_formats.append("%b-%d")
-        self.date_formats.append("%b/%d")
-        self.date_formats.append("%d-%m")
-        self.date_formats.append("%d/%m")
-        self.date_formats.append("%d-%b")
-        self.date_formats.append("%d/%b")
 
         #--garabage values
         self.variant_data = {}
@@ -75,58 +62,123 @@ class mapper():
         return new_value
 
     #----------------------------------------
-    def format_date(self, raw_date, output_format = None):
-        for date_format in self.date_formats:
-            try: new_date = datetime.strptime(raw_date, date_format)
-            except: pass
-            else: 
-                if not output_format:
-                    if len(raw_date) == 4:
-                        output_format = '%Y'
-                    elif len(raw_date) in (5,6):
-                        output_format = '%m-%d'
-                    elif len(raw_date) in (7,8):
-                        output_format = '%Y-%m'
-                    else:
-                        output_format = '%Y-%m-%d'
-                return datetime.strftime(new_date, output_format)
-        return ''
+    def format_dob(self, raw_date):
+        try: new_date = dateparse(raw_date)
+        except: return ''
+
+        #--correct for prior century dates
+        if new_date.year > datetime.now().year:
+            new_date = datetime(new_date.year - 100, new_date.month, new_date.day)
+
+        if len(raw_date) == 4:
+            output_format = '%Y'
+        elif len(raw_date) in (5,6):
+            output_format = '%m-%d'
+        elif len(raw_date) in (7,8):
+            output_format = '%Y-%m'
+        else:
+            output_format = '%Y-%m-%d'
+
+        return datetime.strftime(new_date, output_format)
+
+    #----------------------------------------
+    def update_stat(self, cat1, cat2, example=None):
+
+        if cat1 not in self.stat_pack:
+            self.stat_pack[cat1] = {}
+        if cat2 not in self.stat_pack[cat1]:
+            self.stat_pack[cat1][cat2] = {}
+            self.stat_pack[cat1][cat2]['count'] = 0
+
+        self.stat_pack[cat1][cat2]['count'] += 1
+        if example:
+            if 'examples' not in self.stat_pack[cat1][cat2]:
+                self.stat_pack[cat1][cat2]['examples'] = []
+            if example not in self.stat_pack[cat1][cat2]['examples']:
+                if len(self.stat_pack[cat1][cat2]['examples']) < 5:
+                    self.stat_pack[cat1][cat2]['examples'].append(example)
+                else:
+                    randomSampleI = random.randint(2, 4)
+                    self.stat_pack[cat1][cat2]['examples'][randomSampleI] = example
+        return
+
+    #----------------------------------------
+    def capture_mapped_stats(self, json_data):
+
+        if 'DATA_SOURCE' in json_data:
+            data_source = json_data['DATA_SOURCE']
+        else:
+            data_source = 'UNKNOWN_DSRC'
+
+        for key1 in json_data:
+            if type(json_data[key1]) != list:
+                self.update_stat(data_source, key1, json_data[key1])
+            else:
+                for subrecord in json_data[key1]:
+                    for key2 in subrecord:
+                        self.update_stat(data_source, key2, subrecord[key2])
+
+#----------------------------------------
+def signal_handler(signal, frame):
+    print('USER INTERUPT! Shutting down ... (please wait)')
+    global shut_down
+    shut_down = True
+    return
 
 #----------------------------------------
 if __name__ == "__main__":
+    proc_start_time = time.time()
+    shut_down = False   
+    signal.signal(signal.SIGINT, signal_handler)
 
-    print('\nInitialize mapper class')
-    test_mapper = mapper()
+    input_file = '<input_file_name>'
+    csv_dialect = '<dialect>'
 
-    print('\nmap function result ...')
-    raw_data = {"COLUMN1": "100", "COLUMN2": "NULL", "COLUMN3": "NAME"}
-    test_result = test_mapper.map(raw_data)
-    print('\n' + json.dumps(test_result, indent=4))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input_file', dest='input_file', default = input_file, help='the name of the input file')
+    parser.add_argument('-o', '--output_file', dest='output_file', help='the name of the output file')
+    parser.add_argument('-l', '--log_file', dest='log_file', help='optional name of the statistics log file')
+    args = parser.parse_args()
 
-    print('\nclean_value tests ...')
-    tests = []
-    tests.append(['ABC    COMPANY', 'ABC COMPANY'])
-    tests.append([' n/a', ''])
-    tests.append([None, ''])
-    for test in tests:
-        result = test_mapper.clean_value(test[0])
-        if result == test[1]:
-            print('\t%s [%s] -> [%s]' % ('pass', test[0], test[1]))
-        else:
-            print('\t%s [%s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], result))
+    if not args.input_file or not os.path.exists(args.input_file):
+        print('\nPlease supply a valid input file name on the command line\n')
+        sys.exit(1)
+    if not args.output_file:
+        print('\nPlease supply a valid output file name on the command line\n') 
+        sys.exit(1)
 
-    print('\nformat_date tests ...')
-    tests = []
-    tests.append(['11/12/1927', '1927-11-12'])
-    tests.append(['01-2027', '2027-01'])
-    tests.append(['1-may-2020', '2020-05-01'])
-    tests.append([None, ''])
-    for test in tests:
-        result = test_mapper.format_date(test[0])
-        if result == test[1]:
-            print('\t%s [%s] -> [%s]' % ('pass', test[0], test[1]))
-        else:
-            print('\t%s [%s] -> [%s] got [%s]' % ('FAIL!', test[0], test[1], result))
+    input_file_handle = open(args.input_file, 'r')
+    output_file_handle = open(args.output_file, 'w', encoding='utf-8')
+    mapper = mapper()
+
+    input_row_count = 0
+    output_row_count = 0
+    for input_row in csv.DictReader(input_file_handle, dialect=csv_dialect):
+        input_row_count += 1
+
+        json_data = mapper.map(input_row)
+        if json_data:
+            output_file_handle.write(json.dumps(json_data) + '\n')
+            output_row_count += 1
+
+        if input_row_count % 1000 == 0:
+            print('%s rows processed, %s rows written' % (input_row_count, output_row_count))
+        if shut_down:
+            break
+
+    elapsed_mins = round((time.time() - proc_start_time) / 60, 1)
+    run_status = ('completed in' if not shut_down else 'aborted after') + ' %s minutes' % elapsed_mins
+    print('%s rows processed, %s rows written, %s\n' % (input_row_count, output_row_count, run_status))
+
+    output_file_handle.close()
+    input_file_handle.close()
+
+    #--write statistics file
+    if args.log_file: 
+        with open(args.log_file, 'w') as outfile:
+            json.dump(mapper.stat_pack, outfile, indent=4, sort_keys = True)
+        print('Mapping stats written to %s\n' % args.log_file)
 
 
-    print ('\ntests complete\n')
+    sys.exit(0)
+
