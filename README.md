@@ -70,7 +70,7 @@ python csv_analyzer.py \
 - The -d parameter can be used to set the csv column delimiter manually
 - The -e parameter can be used to set the encoding to sdomething like latin-1 if needed
 
-*Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings using the -m map[ping file method.  Python programmers will likley want to use the -p python module method as they have more complete control over the process.*
+**Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings using the -m map[ping file method.  Python programmers will likley want to use the -p python module method as they have more complete control over the process.**
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
@@ -362,40 +362,40 @@ is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_da
 
 Step 3: Update the new_data python dictionary by adding, changing or deleting its values.  The following code changes were made for this tutorial ...
 ```
-new_data['DATA_SOURCE'] = 'TEST'  #-- set the data source
+json_data['DATA_SOURCE'] = 'TEST'  #-- set the data source
 
-new_data['ENTITY_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
+json_data['ENTITY_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
 
-new_data['RECORD_ID'] = raw_data['uniqueid'] #--set the record_id
+json_data['RECORD_ID'] = raw_data['uniqueid'] #--set the record_id
 
-#new_data['name'] = raw_data['name'] #--commented out in favor of ...
+#json_data['name'] = raw_data['name'] #--commented out in favor of ...
 if is_organization:
-    new_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
+    json_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
 else:
-    new_data['NAME_FULL'] = raw_data['name'] #--name_full if not
+    json_data['NAME_FULL'] = raw_data['name'] #--name_full if not
 
-#new_data['gender'] = raw_data['gender'] #--commented out as no value
+#json_data['gender'] = raw_data['gender'] #--commented out as no value
 
-new_data['DATE_OF_BIRTH'] = raw_data['dob'] #--mapped
+json_data['DATE_OF_BIRTH'] = raw_data['dob'] #--mapped
 
-new_data['SSN_NUMBER'] = raw_data['ssn'] #--mapped
+json_data['SSN_NUMBER'] = raw_data['ssn'] #--mapped
 
 if is_organization:
-    new_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
+    json_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
 
-new_data['ADDR_LINE1'] = raw_data['addr1'] #--mapped
+json_data['ADDR_LINE1'] = raw_data['addr1'] #--mapped
 
-new_data['ADDR_CITY'] = raw_data['city'] #--mapped
+json_data['ADDR_CITY'] = raw_data['city'] #--mapped
 
-new_data['ADDR_STATE'] = raw_data['state'] #--mapped
+json_data['ADDR_STATE'] = raw_data['state'] #--mapped
 
-new_data['ADDR_POSTAL_CODE'] = raw_data['zip'] #--mapped
+json_data['ADDR_POSTAL_CODE'] = raw_data['zip'] #--mapped
 
-new_data['important_date'] = raw_data['create_date'] #--kept and standardized name
+json_data['important_date'] = raw_data['create_date'] #--kept and standardized name
 
-new_data['important_status'] = raw_data['status'] #--kept and standardized name
+json_data['important_status'] = raw_data['status'] #--kept and standardized name
 
-#new_data['value'] = raw_data['value'] #--comment out as un-needed
+#json_data['value'] = raw_data['value'] #--comment out as un-needed
 
 ```
 
