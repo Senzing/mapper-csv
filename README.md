@@ -70,7 +70,10 @@ python csv_analyzer.py \
 - The -d parameter can be used to set the csv column delimiter manually
 - The -e parameter can be used to set the encoding to sdomething like latin-1 if needed
 
-**Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings using the -m map[ping file method.  Python programmers will likley want to use the -p python module method as they have more complete control over the process.**
+**Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python 
+module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings 
+using the -m mapping file method.  Python programmers will likley want to use the -p python module method 
+as they have more complete control over the process.**
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
@@ -190,8 +193,8 @@ json_data['important_status'] = raw_data['status'] #--kept and standardized name
 
 ### Running the python module standalone
 
-The python module is really a class that can be called from anywhere including the csv_mapper.py file 
-reader included in this github project.  
+The python module is really a portable class that can be called from anywhere including the csv_mapper.py 
+included in this github project.  
 
 It can even be incorporated into another workflow entirely that reads the raw csv file, maps it with this 
 mapper class and places them onto a queue such as sqs or rabbit mq.  See ...
