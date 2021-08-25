@@ -3,10 +3,12 @@
 ## Overview
 
 These csv mapping tools help you map any csv file into json for loading into Senzing.  It contains the following python scripts ...
-- The [csv_analyzer.py](csv_analyzer.py) script reads a csv, accumulating column statistics like percent populated, percent unique and top 5 values.  It also creates a default mapping file to be used by the csv_mapper.
-- The [csv_mapper.py](csv_mapper.py) script reads a csv using a mapping file to turn it into senzing json.
-- The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) are a set of functions used by the csv_analyzer and csv_mapper.
+- The [csv_analyzer.py](csv_analyzer.py) script reads a csv, accumulating column statistics like percent populated, percent unique and top 5 values.  It can also create either:
+-- a python script for standalone use based on the python_template.py below.
+-- a json mapping file for use with the csv_mapper.py below
 - The [python_template.py](python_template.py) is the template for a customizable python module.  Sometimes the number of transforms required to map a csv file warrant going straight to python.  As a bonus, this module is portable in that it contains a mapping class that can be called from other transports.   Sometimes, you want to test your mappings in a file, but implement it via a message queue.
+- The [csv_mapper.py](csv_mapper.py) script reads a csv using a mapping file to turn it into senzing json.
+- The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) are a set of functions used by the csv_mapper.
 
 ## Contents
 
@@ -36,7 +38,6 @@ Place the the following files on a directory of your choice.
 - [csv_analyzer.py](csv_analyzer.py)
 - [csv_mapper.py](csv_mapper.py)
 - [csv_functions.py](csv_functions.py)
-- [csv_functions.json](csv_functions.json)
 - [csv_functions.json](csv_functions.json)
 - [python_template.py](python_template.py)
 
