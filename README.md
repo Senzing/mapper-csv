@@ -4,13 +4,13 @@
 
 These csv mapping tools help you map any csv file into json for loading into Senzing.  It contains the following python scripts ...
 - The [csv_analyzer.py](csv_analyzer.py) script reads a csv, accumulating column statistics like percent populated, percent unique and top 5 values.  It can also create either:
-    - a python script for standalone use based on the python_template.py below. **RECOMMENDED METHOD**
+    - a python script for standalone use based on the python_template.py below. 
     - a json mapping file for use with the csv_mapper.py below.  
 - The [python_template.py](python_template.py) is the template for a customizable python module.  Sometimes the number of transforms required to map a csv file warrant going straight to python.  As a bonus, this module is portable in that it contains a mapping class that can be called from other transports.   Sometimes, you want to test your mappings in a file, but implement it via a message queue.
 - The [csv_mapper.py](csv_mapper.py) script reads a csv using a mapping file to turn it into senzing json.
 - The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) are a set of functions used by the csv_mapper.
 
-*Having the csv_analyzer.py create a standalone python script is the recommended method as it adds more flexibility and is easier to customize when the raw csv data does not have direct mappings
+*Having the csv_analyzer.py create a standalone python script is the **recommended method** as it adds more flexibility and is easier to customize when the raw csv data does not have direct mappings
 to Senzing attributes.  While it does require some knowledge of python, it is not much more complicated than the json mapping file approach which does not.*
 
 Please refer back to the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for more information on how to map 
