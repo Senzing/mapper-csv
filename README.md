@@ -162,7 +162,7 @@ to this ...
         # json_data['uniqueid'] = raw_data['uniqueid']
 ```
 *We already mapped this to RECORD_ID.  There is no need to map it twice!*
-#### 5. Comment out the uniqueid mapping
+#### 5. Comment out the type mapping
 change this ...
 ```console
         json_data['type'] = raw_data['type']
@@ -187,8 +187,60 @@ to this ...
 ```
 *See the "Attributes for names ..." chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for 
 information on why it was mapped this way.*
+#### 7. Map the next 3 columns to their appropriate Senzing attributes
+change these ...
+```console
+        json_data['gender'] = raw_data['gender']
+        json_data['dob'] = raw_data['dob']
+        json_data['ssn'] = raw_data['ssn']
+```
+to this ...
+```console
+        json_data['GENDER'] = raw_data['gender']
+        json_data['DATE_OF_BIRTH'] = raw_data['dob']
+        json_data['SSN_NUMBER'] = raw_data['ssn']
+```
+#### 8. Set the address label to business or primary
+Add this before the addr1 column mapping code
+```console
+        #--set the address type to business if an organization
+        if json_data['RECORD_TYPE'] == 'ORGANIZATION':
+            json_data['ADDR_TYPE'] = 'BUSINESS'
+        else:
+            json_data['ADDR_TYPE'] = 'PRIMARY'
 
+```
+*See the "Special attribute types and labels" chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) 
+for information on why it was mapped this way.*
+#### 8. Set the address label to business or primary
+Add this before the addr1 column mapping code
+```console
+        #--set the address type to business if an organization
+        if json_data['RECORD_TYPE'] == 'ORGANIZATION':
+            json_data['ADDR_TYPE'] = 'BUSINESS'
+        else:
+            json_data['ADDR_TYPE'] = 'PRIMARY'
 
+```
+#### 9. Map the address columns to their appropriate Senzing attributes
+change these ...
+```console
+        json_data['addr1'] = raw_data['addr1']
+        json_data['city'] = raw_data['city']
+        json_data['state'] = raw_data['state']
+        json_data['zip'] = raw_data['zip']
+```
+to this ...
+```console
+        json_data['ADDR_LINE1'] = raw_data['addr1']
+        json_data['ADDR_CITY'] = raw_data['city']
+        json_data['ADDR_STATE'] = raw_data['state']
+        json_data['ADDR_POSTAL_CODE'] = raw_data['zip']
+
+```
+#### 10. Leave the remaining column mappings as is
+These are the "Attributes for values that are not used for entity resolution" as described in 
+the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) 
 
 
 ### Running the python module standalone
