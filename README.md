@@ -150,7 +150,7 @@ to this ...
         # already mapped as record_id
         # json_data['uniqueid'] = raw_data['uniqueid']
 ```
-*There is no need to map it twice!*
+*We already mapped this to RECORD_ID.  There is no need to map it twice!*
 #### 4. Map the name field
 change this ...
 ```console
@@ -160,16 +160,16 @@ to this ...
 ```console
         json_data['PRIMARY_NAME_FULL'] = raw_data['name']
 ```
-*See the names chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for information on why it
-was mapped this way.*
+*See the "Attributes for names ..." chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for 
+information on why it was mapped this way.*
 
 ### Running the python module standalone
 
 Type the following to test the mapper standalone ...
 ```
 python mappings/test_set1.py \
-  -i input/test_set1.csv 
-  -o output/test_set1.json 
+  -i input/test_set1.csv \
+  -o output/test_set1.json \ 
   -l output/test_set1-stats.json 
 ```
 You will get the following output ...
