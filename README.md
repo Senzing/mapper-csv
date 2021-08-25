@@ -39,7 +39,7 @@ source files to Senzing.
 
 ## Installation
 
-Place the the following files on a directory of your choice.
+Place the the following files on a directory of your choice:
 
 - [csv_analyzer.py](csv_analyzer.py)
 - [python_template.py](python_template.py)
@@ -47,7 +47,7 @@ Place the the following files on a directory of your choice.
 - [csv_functions.py](csv_functions.py)
 - [csv_functions.json](csv_functions.json)
 
-Include the input, mappings and output subdirectories and files for the tutorial
+Include the input, mappings and output subdirectories and files for the tutorial:
 
 - [input/test_set1.csv](input/test_set1.csv)
 - [mappings/test_set1.map](mappings/test_set1.map)
@@ -84,10 +84,8 @@ python csv_analyzer.py \
 - The -d parameter can be used to set the csv column delimiter manually
 - The -e parameter can be used to set the encoding to something like latin-1 if needed
 
-**Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python 
-module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings 
-using the -m mapping file method.  Python programmers will likley want to use the -p python module method 
-as they have more complete control over the process.**
+*Note: Normally you would decide if you want a simple mapping with the -m parameter or a python module with the -p parameter.  There is no need to do both.  Non-python programmers 
+can do simple mappings using the -m mapping file method.  Python programmers will likley want to use the -p python module method as they have more complete control over the process.*
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
@@ -109,7 +107,7 @@ The purpose of this analysis helps you to determine what columns to map in the f
 
 ## Python module tutorial
 
-If using the python module approach, complete the following steps ...
+If using the python module approach, complete the following steps:
 
 Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.  The next step is to 
 edit that file to assign a data source, set the record ID and map the column values.  The csv_analyzer stats are provided for each column so that you can see how populated each is and what 
