@@ -185,13 +185,13 @@ to this:
 information on why it was mapped this way.*
 
 #### 6. Map the next 3 columns to their appropriate Senzing attributes
-change these ...
+change these:
 ```console
         json_data['gender'] = raw_data['gender']
         json_data['dob'] = raw_data['dob']
         json_data['ssn'] = raw_data['ssn']
 ```
-to this ...
+to these:
 ```console
         json_data['GENDER'] = raw_data['gender']
         json_data['DATE_OF_BIRTH'] = raw_data['dob']
