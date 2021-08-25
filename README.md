@@ -4,29 +4,32 @@
 
 These csv mapping tools help you map any csv file into json for loading into Senzing.  It contains the following python scripts ...
 - The [csv_analyzer.py](csv_analyzer.py) script reads a csv, accumulating column statistics like percent populated, percent unique and top 5 values.  It can also create either:
--- a python script for standalone use based on the python_template.py below.
--- a json mapping file for use with the csv_mapper.py below
+    - a python script for standalone use based on the python_template.py below. **RECOMMENDED METHOD**
+    - a json mapping file for use with the csv_mapper.py below.  
 - The [python_template.py](python_template.py) is the template for a customizable python module.  Sometimes the number of transforms required to map a csv file warrant going straight to python.  As a bonus, this module is portable in that it contains a mapping class that can be called from other transports.   Sometimes, you want to test your mappings in a file, but implement it via a message queue.
 - The [csv_mapper.py](csv_mapper.py) script reads a csv using a mapping file to turn it into senzing json.
 - The [csv_functions.py](csv_functions.py) and associated [csv_functions.json](csv_functions.json) are a set of functions used by the csv_mapper.
 
+*Having the csv_analyzer.py create a standalone python script is the recommended method as it adds more flexibility and is easier to customize when the raw csv data does not have direct mappings
+to Senzing attributes.  While it does require some knowledge of python, it is not much more complicated than the json mapping file approach which does not.*
+
 ## Contents
 
 1. [Prerequisites](#prerequisites)
-1. [Installation](#installation)
-1. [Run the analyzer](#run-the-analyzer)
-1. [Review the statistics](#review-the-statistics)
-1. [Python module tutorial](#python-module-tutorial)
+2. [Installation](#installation)
+3. [Run the analyzer](#run-the-analyzer)
+4. [Review the statistics](#review-the-statistics)
+5. [Python module tutorial](#python-module-tutorial)
     1. [Adding your own functions](#adding-your-own-functions)
-    1. [Update the mappings](#update-the-mappings)
-    1. [Running the python module standalone](#Running-the-python-module-standalone)
-    1. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
-1. [Mapping file tutorial](#mapping-file-tutorial)
+    2. [Update the mappings](#update-the-mappings)
+    3. [Running the python module standalone](#Running-the-python-module-standalone)
+    4. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
+6. [Mapping file tutorial](#mapping-file-tutorial)
     1. [Input section](#input-section)
-    1. [Calculations section](#calculations-section)
-    1. [Output section](#output-section)
-    1. [Run the mapper with a mapping file](#run-the-mapper-with-a-mapping-file)
-1. [Loading into Senzing](#loading-into-senzing)
+    2. [Calculations section](#calculations-section)
+    3. [Output section](#output-section)
+    4. [Run the mapper with a mapping file](#run-the-mapper-with-a-mapping-file)
+7. [Loading into Senzing](#loading-into-senzing)
 
 ### Prerequisites
 - python 3.6 or higher
@@ -36,10 +39,10 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 Place the the following files on a directory of your choice.
 
 - [csv_analyzer.py](csv_analyzer.py)
+- [python_template.py](python_template.py)
 - [csv_mapper.py](csv_mapper.py)
 - [csv_functions.py](csv_functions.py)
 - [csv_functions.json](csv_functions.json)
-- [python_template.py](python_template.py)
 
 Include the input, mappings and output subdirectories and files for the tutorial
 
@@ -54,14 +57,21 @@ Follow these steps in order.  First use the supplied file test_set1.csv.  Then t
 
 ### Run the analyzer
 
-Execute the csv_analyzer script as follows ...
+Execute the csv_analyzer script as follows to create a standalone python script based on the python template ... **RECOMMENDED**
 ```console
 python csv_analyzer.py \
   -i input/test_set1.csv \
   -o input/test_set1-analysis.csv \
-  -m mappings/test_set1.map \
   -p mappings/test_set1.py
 ```
+or to create a mapping file for use with the csv_mapper.py *(does not require knowledge of python for simple mappings)*
+```console
+python csv_analyzer.py \
+  -i input/test_set1.csv \
+  -o input/test_set1-analysis.csv \
+  -m mappings/test_set1.map 
+```
+
 - The -i parameter is for the csv file you want to analyze.
 - The -o parameter is for the name of the file to write the statistics to.  It is a csv file as well.
 - The -m parameter is for the name of the mapping file to create.  You will later edit this file to map the csv to json using this method.
@@ -69,7 +79,7 @@ python csv_analyzer.py \
 
 *Note: The csv analyzer use the csv module sniffer to determine the file delimiter for you.   If you have problems with this, you can override the delimiter and even the file encoding.*
 - The -d parameter can be used to set the csv column delimiter manually
-- The -e parameter can be used to set the encoding to sdomething like latin-1 if needed
+- The -e parameter can be used to set the encoding to something like latin-1 if needed
 
 **Note: Normally you would decide if you want a simple mapping with the -m parameter or a portable python 
 module with the -p parameter.  There is no need to do both.  Non-python programmers can do simple mappings 
@@ -100,9 +110,40 @@ If using the python module approach, complete the following steps ...
 
 Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.
 
+The next step is to assign a data source, set the record ID and map the column values.  The csv_analyzer stats are provided for each column so that you can see how populated each is and what 
+the top 5 most used values look like.
+
+#### Assign a data source code
+Change this ...
+```console
+        #--mandatory attributes
+        json_data['DATA_SOURCE'] = '<supply>' 
+```
+to this ...
+```console
+        #--mandatory attributes
+        json_data['DATA_SOURCE'] = 'TEST' 
+```
+#### set the record ID to a unique value
+change this ...
+```console
+        #--the record_id should be unique, remove this mapping if there is not one 
+        json_data['RECORD_ID'] = '<remove_or_supply>'
+```
+to this ...
+```console
+        #--the record_id should be unique, remove this mapping if there is not one 
+        json_data['RECORD_ID'] = '<remove_or_supply>'
+```
+
+
+
+
+
+
 *Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
 
-### Adding your own functions
+#### Adding your own functions
 
 In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
 
@@ -133,7 +174,7 @@ self.variant_data['ORGANIZATION_TOKENS'].append('CLINIC')
 self.variant_data['ORGANIZATION_TOKENS'].append('CITY OF')
 ```
 
-### Update the mappings
+#### Update the mappings
 Filters, calculations and mappings are all done in the map() function which is called for every record.  The following changes were made for this test file ...
 
 Step 1: A filter was added in the filter section ...
