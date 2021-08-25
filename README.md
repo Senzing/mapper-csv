@@ -24,10 +24,9 @@ source files to Senzing.
 4. [Review the statistics](#review-the-statistics)
 5. [Python module tutorial](#python-module-tutorial)
     1. [Simple mappings](#simple-mappings)
-    3. [Running the python module standalone](#Running-the-python-module-standalone)
-    4. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
-    1. [Adding your own functions](#adding-your-own-functions)
-    2. [Update the mappings](#update-the-mappings)
+    2. [Running the python module standalone](#Running-the-python-module-standalone)
+    3. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
+    4. [Advanced mapping functions](#Advanced-mapping-functions)
 6. [Mapping file tutorial](#mapping-file-tutorial)
     1. [Input section](#input-section)
     2. [Calculations section](#calculations-section)
@@ -112,11 +111,11 @@ The purpose of this analysis helps you to determine what columns to map in the f
 
 If using the python module approach, complete the following steps ...
 
-Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.
+Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.  The next step is to 
+edit that file to assign a data source, set the record ID and map the column values.  The csv_analyzer stats are provided for each column so that you can see how populated each is and what 
+the top 5 most used values look like.
 
 ### Simple mappings
-The next step is to assign a data source, set the record ID and map the column values.  The csv_analyzer stats are provided for each column so that you can see how populated each is and what 
-the top 5 most used values look like.
 
 #### 1. Assign a data source code
 Change this ...
@@ -129,6 +128,7 @@ to this ...
         #--mandatory attributes
         json_data['DATA_SOURCE'] = 'TEST' 
 ```
+
 #### 2. Set the record ID to a unique value
 change this ...
 ```console
@@ -140,6 +140,7 @@ to this ...
         #--the record_id should be unique, remove this mapping if there is not one 
         json_data['RECORD_ID'] = raw_data['uniqueid']
 ```
+
 #### 3. Set the record type to person or organization
 change this ...
 ```console
@@ -151,29 +152,26 @@ to this ...
         #--record type is not mandatory, but should be PERSON or ORGANIATION
         json_data['RECORD_TYPE'] = 'PERSON' if raw_data['type'] == 'individual' else 'ORGANIZATION'
 ```
-#### 4. Comment out the uniqueid mapping
-change this ...
+*While not strictly necessary, when there is an obvious mapping it should be used.*
+
+#### 4. Comment out the uniqueid and type mappings
+change these ...
 ```console
         json_data['uniqueid'] = raw_data['uniqueid']
+
+        json_data['type'] = raw_data['type']
 ```
-to this ...
+to these ...
 ```console
         # already mapped as record_id
         # json_data['uniqueid'] = raw_data['uniqueid']
-```
-*We already mapped this to RECORD_ID.  There is no need to map it twice!*
-#### 5. Comment out the type mapping
-change this ...
-```console
-        json_data['type'] = raw_data['type']
-```
-to this ...
-```console
+
         # already mapped as record_type
         # json_data['type'] = raw_data['type']
 ```
-*We already mapped this to RECORD_TYPE.  There is no need to map it twice!*
-#### 6. Map the name field
+*There is no need to map columns twice!*
+
+#### 5. Map the name field
 change this ...
 ```console
         json_data['name'] = raw_data['name']
@@ -185,9 +183,10 @@ to this ...
         else:
             json_data['PRIMARY_NAME_ORG'] = raw_data['name']
 ```
-*See the "Attributes for names ..." chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for 
+*See the *"Attributes for names ..."* chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for 
 information on why it was mapped this way.*
-#### 7. Map the next 3 columns to their appropriate Senzing attributes
+
+#### 6. Map the next 3 columns to their appropriate Senzing attributes
 change these ...
 ```console
         json_data['gender'] = raw_data['gender']
@@ -200,7 +199,8 @@ to this ...
         json_data['DATE_OF_BIRTH'] = raw_data['dob']
         json_data['SSN_NUMBER'] = raw_data['ssn']
 ```
-#### 8. Set the address label to business or primary
+
+#### 7. Set the address label to business or primary
 Add this before the addr1 column mapping code
 ```console
         #--set the address type to business if an organization
@@ -210,19 +210,10 @@ Add this before the addr1 column mapping code
             json_data['ADDR_TYPE'] = 'PRIMARY'
 
 ```
-*See the "Special attribute types and labels" chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) 
+*See the *"Special attribute types and labels"* chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) 
 for information on why it was mapped this way.*
-#### 8. Set the address label to business or primary
-Add this before the addr1 column mapping code
-```console
-        #--set the address type to business if an organization
-        if json_data['RECORD_TYPE'] == 'ORGANIZATION':
-            json_data['ADDR_TYPE'] = 'BUSINESS'
-        else:
-            json_data['ADDR_TYPE'] = 'PRIMARY'
 
-```
-#### 9. Map the address columns to their appropriate Senzing attributes
+#### 8. Map the address columns to their appropriate Senzing attributes
 change these ...
 ```console
         json_data['addr1'] = raw_data['addr1']
@@ -238,10 +229,9 @@ to this ...
         json_data['ADDR_POSTAL_CODE'] = raw_data['zip']
 
 ```
-#### 10. Leave the remaining column mappings as is
-These are the "Attributes for values that are not used for entity resolution" as described in 
+#### 9. Leave the remaining column mappings as is
+These are the *"Attributes for values that are not used for entity resolution"* as described in 
 the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) 
-
 
 ### Running the python module standalone
 
@@ -260,178 +250,103 @@ Mapping stats written to output/test_set1-stats.json
 ```
 You can then review the resulting json and mapping stats file to ensure everything is working as expected!
 
-### Adding your own functions
+### Advanced mapping functions
 
-In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
-
-Step 1: Add the is_organization function just under the format_dob function.
-```
-#-----------------------------------
-def is_organization(self, raw_name, raw_dob, raw_ssn):
-    if raw_dob or raw_ssn or not raw_name:
-        return False
-    prior_tokens = []
-    for token in raw_name.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
-        if token in self.variant_data['ORGANIZATION_TOKENS']:
-            return True
-        elif ' '.join(prior_tokens[-2:]) in self.variant_data['ORGANIZATION_TOKENS']:
-            return True
-        elif ' '.join(prior_tokens[-3:]) in self.variant_data['ORGANIZATION_TOKENS']:
-            return True
-        prior_tokens.append(token)
-    return False
-``` 
-Step 2: Add the configuration for it to the load_reference_data() function which is called by the module's initialization function at the top.  Not all functions will require reference data.
-```
-#--organization tokens
-self.variant_data['ORGANIZATION_TOKENS'] = []
-self.variant_data['ORGANIZATION_TOKENS'].append('COMPANY')
-self.variant_data['ORGANIZATION_TOKENS'].append('HOSPITAL')
-self.variant_data['ORGANIZATION_TOKENS'].append('CLINIC')
-self.variant_data['ORGANIZATION_TOKENS'].append('CITY OF')
-```
-
-#### Update the mappings
-Filters, calculations and mappings are all done in the map() function which is called for every record.  The following changes were made for this test file ...
-
-Step 1: A filter was added in the filter section ...
+#### What if there are records you want to filter out?
+Let's say you didn't want to send any records that didn't have a name.   Add this code in the filter section ...
 ```
 #--place any filters needed here
 if not raw_data['name']:
     return None
 ```
+#### What if there is not a unique key for a record in the file
 
-Step 2: Call the is_organization function in the calculations section ...
-```
-#--place any calculations needed here
-is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
-```
+There are 2 options: 
 
-Step 3: Update the new_data python dictionary by adding, changing or deleting its values.  The following code changes were made for this tutorial ...
-```
-json_data['DATA_SOURCE'] = 'TEST'  #-- set the data source
-
-json_data['RECORD_ID'] = raw_data['uniqueid'] #--set the record_id
-
-#json_data['uniqueid'] = raw_data['uniqueid']  #--already mapped as record_id
-
-# json_data['type'] = raw_data['type']  #--use our calculation here instead
-json_data['RECORD_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
-
-
-#json_data['name'] = raw_data['name'] #--commented out in favor of ...
-if is_organization:
-    json_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
-else:
-    json_data['NAME_FULL'] = raw_data['name'] #--name_full if not
-
-#json_data['gender'] = raw_data['gender'] #--commented out as no value
-
-json_data['DATE_OF_BIRTH'] = raw_data['dob'] #--mapped
-
-json_data['SSN_NUMBER'] = raw_data['ssn'] #--mapped
-
-if is_organization:
-    json_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
-
-json_data['ADDR_LINE1'] = raw_data['addr1'] #--mapped
-
-json_data['ADDR_CITY'] = raw_data['city'] #--mapped
-
-json_data['ADDR_STATE'] = raw_data['state'] #--mapped
-
-json_data['ADDR_POSTAL_CODE'] = raw_data['zip'] #--mapped
-
-json_data['important_date'] = raw_data['create_date'] #--kept and standardized name
-
-json_data['important_status'] = raw_data['status'] #--kept and standardized name
-
-#json_data['value'] = raw_data['value'] #--comment out as un-needed
-
-```
-
-### Running the python module standalone
-
-The python module is really a portable class that can be called from anywhere including the csv_mapper.py 
-included in this github project.  
-
-It can even be incorporated into another workflow entirely that reads the raw csv file, maps it with this 
-mapper class and places them onto a queue such as sqs or rabbit mq.  See ...
-- https://github.com/Senzing/docker-compose-demo
-- https://github.com/Senzing/aws-cloudformation-ecs
-This way you don't have to create interim json files for loading!
-
-But for testing it can also be run all by itself as it contains its own simple file reader.  
-Type the following to test the mapper standalone ...
-```
-python mappings/test_set1.py \
-  -i input/test_set1.csv 
-  -o output/test_set1.json 
-  -l output/test_set1-stats.json 
-```
-You will get the following output ...
-```
-9 rows processed, 8 rows written, completed in 0.0 minutes
-
-Mapping stats written to output/test_set1-stats.json
-```
-You can then review the resulting json and mapping stats file to ensure everything is working as expected!
-
-### Run the mapper with a python module
-
-Execute the csv_mapper script as follows ...
+##### Option 1 - use the row number
 ```console
-python csv_mapper.py \
-  -i input/test_set1.csv \
-  -p mappings/test_set1.py \
-  -o output/test_set1.json \
-  -l output/test_set1-statistics.json
-
-Processing input/test_set1.csv ...
- 10 rows processed, 2 rows skipped, complete!               <--both the header and empty rows were skipped
-
-OUTPUT #0 ...
-  8 rows written
-  0 rows skipped
-
- MAPPED ATTRIBUTES:                                         <--these are the attributes that will be used for resolution
-  data_source...................          8 100.0 %
-  entity_type...................          8 100.0 %
-  record_id.....................          8 100.0 %
-  name_org......................          3 37.5 %
-  addr_type.....................          3 37.5 %
-  addr_line1....................          8 100.0 %
-  addr_city.....................          8 100.0 %
-  addr_state....................          8 100.0 %
-  addr_postal_code..............          8 100.0 %
-  name_full.....................          5 62.5 %
-  date_of_birth.................          2 25.0 %
-  ssn_number....................          2 25.0 %
-
- UNMAPPED ATTRIBUTES:                                       <--these are attributes you decided to keep that won't be used for resolution
-  important_date................          8 100.0 %
-  important_status..............          8 100.0 %
-
-Mapping stats written to output/test_set1-statistics.json
-
-process completed!
+        json_data['RECORD_ID'] = input_row_num
 ```
-The -i parameter is for the csv file you want to map into json.
-The -o parameter is for the name of the json records to.
-The -p parameter is for the name of the completed python module file to use.
+*input_row_num is computed for you and passed into the map() class*
 
-You will want to review the statistics it produces and make sure it makes sense to you ... 
-- Do the mapped statistics make sense?  Especially for calculated values such as name_org and name_full.
-- Should any of the unmapped attributes really be mapped?  Maybe there is a typo.
+*This is fine option if the file will **never** be reloaded*
 
-### Mapping file tutorial
+##### Option 2 - compute a record hash of the mapped fields
+```console
+        #--place any calculations needed here
+
+        #--compute a hash of the fields used for resolution to use as a record_id
+        pii_attrs = ['name',
+                     'gender',
+                     'dob',
+                     'ssn',
+                     'addr1',
+                     'city',
+                     'state',
+                     'zip']
+        record_hash = self.compute_record_hash(raw_data, pii_attrs)
+```
+and then later in the code ...
+```console
+        json_data['RECORD_ID'] = record_hash
+```
+*The purpose of only including the fields used for resolution in the record_hash is so that any dates or status that may change will not create a duplicate record*
+
+*This is the safest method if the file will ever be updated and reloaded!*
+
+#### What if you want to use an algorithm to determine if this is a person or an organization
+
+In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
+
+##### Step 1: Add the is_organization function just under the format_date function.
+```console
+    #-----------------------------------
+    def is_organization(self, raw_name, raw_dob, raw_ssn):
+        #--if a dob or ssn was supplied its a person
+        if raw_dob or raw_ssn or not raw_name:
+            return False
+        #--if organizational tokens exist, its an organization 
+        prior_tokens = []
+        for token in raw_name.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
+            if token in self.variant_data['ORGANIZATION_TOKENS']:
+                return True
+            elif ' '.join(prior_tokens[-2:]) in self.variant_data['ORGANIZATION_TOKENS']:
+                return True
+            elif ' '.join(prior_tokens[-3:]) in self.variant_data['ORGANIZATION_TOKENS']:
+                return True
+            prior_tokens.append(token)
+        return False
+``` 
+##### Step 2: Add the configuration for it to the load_reference_data() function.
+```console
+        #--organization tokens
+        self.variant_data['ORGANIZATION_TOKENS'] = []
+        self.variant_data['ORGANIZATION_TOKENS'].append('COMPANY')
+        self.variant_data['ORGANIZATION_TOKENS'].append('HOSPITAL')
+        self.variant_data['ORGANIZATION_TOKENS'].append('CLINIC')
+        self.variant_data['ORGANIZATION_TOKENS'].append('CITY OF')
+```
+##### Step 3: Call the is_organization() function in the calculations section
+```console
+        #--place any calculations needed here
+
+        #--use an algorithm to determine if a person or organization
+        is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
+```
+##### Step 4: Replace the record_type attribute based on the outcome
+```console
+        # json_data['RECORD_TYPE'] = 'PERSON' if raw_data['type'] == 'individual' else 'ORGANIZATION'  #-commented out as un-reliable
+        json_data['RECORD_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON'
+```
+
+And that's it!  Most sources you hit will not need much clean-up and the only thing you really need to do is put the right value in the right attribute.  But when the data is really messy, you 
+may need to do some clean-up!
+
+## Mapping file tutorial
 
 If using the mapping file approach, complete the following steps ...
 
 Review the [mappings/test_set1.map](mappings/test_set1.map). It was built by the csv_analyzer based on the columns in the csv file.
-
-*Note: Remember when you ran the analyzer above and saved the current mapping file for this csv to mappings/test_set1.map.bk?  Open that file as well as and copy/paste examples into the new one based on the mapping file struture described below.*
-
 
 ### Input section
 The purpose of this section is to set the csv file delimiter and column headers.   
