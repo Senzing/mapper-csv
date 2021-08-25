@@ -13,6 +13,9 @@ These csv mapping tools help you map any csv file into json for loading into Sen
 *Having the csv_analyzer.py create a standalone python script is the recommended method as it adds more flexibility and is easier to customize when the raw csv data does not have direct mappings
 to Senzing attributes.  While it does require some knowledge of python, it is not much more complicated than the json mapping file approach which does not.*
 
+Please refer back to the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for more information on how to map 
+source files to Senzing. 
+
 ## Contents
 
 1. [Prerequisites](#prerequisites)
@@ -113,7 +116,7 @@ Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the c
 The next step is to assign a data source, set the record ID and map the column values.  The csv_analyzer stats are provided for each column so that you can see how populated each is and what 
 the top 5 most used values look like.
 
-#### Assign a data source code
+#### 1. Assign a data source code
 Change this ...
 ```console
         #--mandatory attributes
@@ -124,7 +127,7 @@ to this ...
         #--mandatory attributes
         json_data['DATA_SOURCE'] = 'TEST' 
 ```
-#### set the record ID to a unique value
+#### 2. Set the record ID to a unique value
 change this ...
 ```console
         #--the record_id should be unique, remove this mapping if there is not one 
@@ -133,10 +136,29 @@ change this ...
 to this ...
 ```console
         #--the record_id should be unique, remove this mapping if there is not one 
-        json_data['RECORD_ID'] = '<remove_or_supply>'
+        json_data['RECORD_ID'] = raw_data['uniqueid']
 ```
-
-
+#### 3. Comment out the uniqueid mapping
+change this ...
+```console
+        json_data['uniqueid'] = raw_data['uniqueid']
+```
+to this ...
+```console
+        # already mapped as record_id
+        # json_data['uniqueid'] = raw_data['uniqueid']
+```
+*There is no need to map it twice!*
+#### 4. map the name field
+change this ...
+```console
+        json_data['name'] = raw_data['name']
+```
+to this ...
+```console
+        json_data['PRIMARY_NAME_FULL'] = raw_data['name']
+```
+*See the name section of the 
 
 
 
