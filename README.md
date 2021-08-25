@@ -180,10 +180,16 @@ change this ...
 ```
 to this ...
 ```console
-        json_data['PRIMARY_NAME_FULL'] = raw_data['name']
+        if json_data['RECORD_TYPE'] == 'PERSON':
+            json_data['PRIMARY_NAME_FULL'] = raw_data['name']
+        else:
+            json_data['PRIMARY_NAME_ORG'] = raw_data['name']
 ```
 *See the "Attributes for names ..." chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for 
 information on why it was mapped this way.*
+
+
+
 
 ### Running the python module standalone
 
@@ -191,12 +197,12 @@ Type the following to test the mapper standalone ...
 ```
 python mappings/test_set1.py \
   -i input/test_set1.csv \
-  -o output/test_set1.json \ 
+  -o output/test_set1.json \
   -l output/test_set1-stats.json 
 ```
 You will get the following output ...
 ```
-9 rows processed, 8 rows written, completed in 0.0 minutes
+9 rows processed, 9 rows written, completed in 0.0 minutes
 
 Mapping stats written to output/test_set1-stats.json
 ```
