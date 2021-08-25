@@ -23,10 +23,11 @@ source files to Senzing.
 3. [Run the analyzer](#run-the-analyzer)
 4. [Review the statistics](#review-the-statistics)
 5. [Python module tutorial](#python-module-tutorial)
-    1. [Adding your own functions](#adding-your-own-functions)
-    2. [Update the mappings](#update-the-mappings)
+    1. [Simple mappings](#simple-mappings)
     3. [Running the python module standalone](#Running-the-python-module-standalone)
     4. [Run the mapper with a python module](#run-the-mapper-with-a-python-module)
+    1. [Adding your own functions](#adding-your-own-functions)
+    2. [Update the mappings](#update-the-mappings)
 6. [Mapping file tutorial](#mapping-file-tutorial)
     1. [Input section](#input-section)
     2. [Calculations section](#calculations-section)
@@ -34,10 +35,10 @@ source files to Senzing.
     4. [Run the mapper with a mapping file](#run-the-mapper-with-a-mapping-file)
 7. [Loading into Senzing](#loading-into-senzing)
 
-### Prerequisites
-- python 3.6 or higher
+## Prerequisites
+- Python 3.6 or higher
 
-### Installation
+## Installation
 
 Place the the following files on a directory of your choice.
 
@@ -54,11 +55,11 @@ Include the input, mappings and output subdirectories and files for the tutorial
 - [mappings/test_set1.py](mappings/test_set1.py)
 - [output/test_set1.json](output/test_set1.json)
 
-### Tutorial
+## Tutorial
 
 Follow these steps in order.  First use the supplied file test_set1.csv.  Then try it with one of your own files!
 
-### Run the analyzer
+## Run the analyzer
 
 Execute the csv_analyzer script as follows to create a standalone python script based on the python template ... **RECOMMENDED**
 ```console
@@ -91,7 +92,7 @@ as they have more complete control over the process.**
 
 Type "python csv_analyzer.py --help"  For the additional parameters you can specify.
 
-### Review the statistics
+## Review the statistics
 
 Open the input/test_set1-analysis.csv in your favorite spreadsheet editor.  The columns are ...
 - columnName - The name of the column. 
@@ -107,12 +108,13 @@ The purpose of this analysis helps you to determine what columns to map in the f
 - Lets say you want to use the SSN column to match and it is 100% populated. But it is only 10% unique meaning a lot of the records have the same SSN.  This may be ok, but it certainly indicates that you are looking at a list of transactions rather than a list of entities.
 - Lets say you have last_name and first_name columns but the first_name column is completely blank and the top 5 last_name examples appear to have both last and first names!  In this case you would want to map last_name to the Senzing NAME_FULL attribute and not map first name at all.
 
-### Python module tutorial
+## Python module tutorial
 
 If using the python module approach, complete the following steps ...
 
 Review the [mappings/test_set1.py](mappings/test_set1.py). It was built by the csv_analyzer which incorporates the columns in the csv file into the python_template.py file.
 
+### Simple mappings
 The next step is to assign a data source, set the record ID and map the column values.  The csv_analyzer stats are provided for each column so that you can see how populated each is and what 
 the top 5 most used values look like.
 
@@ -149,7 +151,7 @@ to this ...
         # json_data['uniqueid'] = raw_data['uniqueid']
 ```
 *There is no need to map it twice!*
-#### 4. map the name field
+#### 4. Map the name field
 change this ...
 ```console
         json_data['name'] = raw_data['name']
@@ -158,14 +160,27 @@ to this ...
 ```console
         json_data['PRIMARY_NAME_FULL'] = raw_data['name']
 ```
-*See the name section of the 
+*See the names chapter of the [Generic entity specification](https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping) for information on why it
+was mapped this way.*
 
+### Running the python module standalone
 
+Type the following to test the mapper standalone ...
+```
+python mappings/test_set1.py \
+  -i input/test_set1.csv 
+  -o output/test_set1.json 
+  -l output/test_set1-stats.json 
+```
+You will get the following output ...
+```
+9 rows processed, 8 rows written, completed in 0.0 minutes
 
+Mapping stats written to output/test_set1-stats.json
+```
+You can then review the resulting json and mapping stats file to ensure everything is working as expected!
 
-*Note: Remember when you ran the analyzer above and saved the current python module for this csv to mappings/test_set1.py.bk?  Open that file as well as and copy/paste examples into the new one based on the python module struture described below.*
-
-#### Adding your own functions
+### Adding your own functions
 
 In this tutorial, we will assume the type field is inaccurate and we will add our own function that determines whether the record represents an organization or person based on name tokens or presence of dob or ssn.  
 
