@@ -140,7 +140,18 @@ to this ...
         #--the record_id should be unique, remove this mapping if there is not one 
         json_data['RECORD_ID'] = raw_data['uniqueid']
 ```
-#### 3. Comment out the uniqueid mapping
+#### 3. Set the record type to person or organization
+change this ...
+```console
+        #--record type is not mandatory, but should be PERSON or ORGANIATION
+        #--json_data['RECORD_TYPE'] = 'PERSON'
+```
+to this ...
+```console
+        #--record type is not mandatory, but should be PERSON or ORGANIATION
+        json_data['RECORD_TYPE'] = 'PERSON' if raw_data['type'] == 'individual' else 'ORGANIZATION'
+```
+#### 4. Comment out the uniqueid mapping
 change this ...
 ```console
         json_data['uniqueid'] = raw_data['uniqueid']
@@ -151,7 +162,18 @@ to this ...
         # json_data['uniqueid'] = raw_data['uniqueid']
 ```
 *We already mapped this to RECORD_ID.  There is no need to map it twice!*
-#### 4. Map the name field
+#### 5. Comment out the uniqueid mapping
+change this ...
+```console
+        json_data['type'] = raw_data['type']
+```
+to this ...
+```console
+        # already mapped as record_type
+        # json_data['type'] = raw_data['type']
+```
+*We already mapped this to RECORD_TYPE.  There is no need to map it twice!*
+#### 6. Map the name field
 change this ...
 ```console
         json_data['name'] = raw_data['name']
