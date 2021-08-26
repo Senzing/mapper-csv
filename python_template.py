@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import sys
 import os
 import argparse
@@ -8,7 +10,7 @@ from datetime import datetime
 from dateutil.parser import parse as dateparse
 import signal
 import random
-
+import hashlib
 
 #=========================
 class mapper():
@@ -20,7 +22,7 @@ class mapper():
         self.stat_pack = {}
 
     #----------------------------------------
-    def map(self, raw_data):
+    def map(self, raw_data, input_row_num = None):
         json_data = {}
 
         #--clean values
@@ -33,14 +35,17 @@ class mapper():
 
         #--mandatory attributes
         json_data['DATA_SOURCE'] = '<supply>'
-        json_data['ENTITY_TYPE'] = 'GENERIC'
 
         #--the record_id should be unique, remove this mapping if there is not one 
         json_data['RECORD_ID'] = '<remove_or_supply>'
 
+        #--record type is not mandatory, but should be PERSON or ORGANIATION
+        #--json_data['RECORD_TYPE'] = 'PERSON'
+
         #--column mappings
 
-        #--capture the stats
+        #--remove empty attributes and capture the stats
+        json_data = self.remove_empty_tags(json_data)
         self.capture_mapped_stats(json_data)
 
         return json_data
@@ -61,25 +66,36 @@ class mapper():
             return ''
         return new_value
 
+    #-----------------------------------
+    def compute_record_hash(self, target_dict, attr_list = None):
+        if attr_list:
+            string_to_hash = ''
+            for attr_name in sorted(attr_list):
+                string_to_hash += (' '.join(str(target_dict[attr_name]).split()).upper() if attr_name in target_dict and target_dict[attr_name] else '') + '|'
+        else:           
+            string_to_hash = json.dumps(target_dict, sort_keys=True)
+        return hashlib.md5(bytes(string_to_hash, 'utf-8')).hexdigest()
+
     #----------------------------------------
-    def format_dob(self, raw_date):
-        try: new_date = dateparse(raw_date)
-        except: return ''
+    def format_date(self, raw_date):
+        try: 
+            return datetime.strftime(dateparse(raw_date), '%Y-%m-%d')
+        except: 
+            self.update_stat('!INFO', 'BAD_DATE', raw_date)
+            return ''
 
-        #--correct for prior century dates
-        if new_date.year > datetime.now().year:
-            new_date = datetime(new_date.year - 100, new_date.month, new_date.day)
-
-        if len(raw_date) == 4:
-            output_format = '%Y'
-        elif len(raw_date) in (5,6):
-            output_format = '%m-%d'
-        elif len(raw_date) in (7,8):
-            output_format = '%Y-%m'
-        else:
-            output_format = '%Y-%m-%d'
-
-        return datetime.strftime(new_date, output_format)
+    #----------------------------------------
+    def remove_empty_tags(self, d):
+        if isinstance(d, dict):
+            for  k, v in list(d.items()):
+                if v is None or len(str(v).strip()) == 0:
+                    del d[k]
+                else:
+                    self.remove_empty_tags(v)
+        if isinstance(d, list):
+            for v in d:
+                self.remove_empty_tags(v)
+        return d
 
     #----------------------------------------
     def update_stat(self, cat1, cat2, example=None):
@@ -156,7 +172,7 @@ if __name__ == "__main__":
     for input_row in csv.DictReader(input_file_handle, dialect=csv_dialect):
         input_row_count += 1
 
-        json_data = mapper.map(input_row)
+        json_data = mapper.map(input_row, input_row_count)
         if json_data:
             output_file_handle.write(json.dumps(json_data) + '\n')
             output_row_count += 1
