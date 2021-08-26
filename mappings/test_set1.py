@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import sys
 import os
 import argparse
@@ -8,7 +10,7 @@ from datetime import datetime
 from dateutil.parser import parse as dateparse
 import signal
 import random
-
+import hashlib
 
 #=========================
 class mapper():
@@ -20,7 +22,7 @@ class mapper():
         self.stat_pack = {}
 
     #----------------------------------------
-    def map(self, raw_data):
+    def map(self, raw_data, input_row_num = None):
         json_data = {}
 
         #--clean values
@@ -28,18 +30,33 @@ class mapper():
             raw_data[attribute] = self.clean_value(raw_data[attribute])
 
         #--place any filters needed here
-        if not raw_data['name']:
-            return None
 
         #--place any calculations needed here
+
+        #--compute a hash of the fields used for resolution to use as a record_id
+        pii_attrs = ['name',
+                     'gender',
+                     'dob',
+                     'ssn',
+                     'addr1',
+                     'city',
+                     'state',
+                     'zip']
+        record_hash = self.compute_record_hash(raw_data, pii_attrs)
+
+        #--use an algorithm to determine if a person or organization
         is_organization = self.is_organization(raw_data['name'], raw_data['dob'], raw_data['ssn'])
 
         #--mandatory attributes
-        json_data['DATA_SOURCE'] = 'TEST'
-        json_data['ENTITY_TYPE'] = 'GENERIC'
+        json_data['DATA_SOURCE'] = 'TEST' 
 
         #--the record_id should be unique, remove this mapping if there is not one 
-        json_data['RECORD_ID'] = raw_data['uniqueid']
+        json_data['RECORD_ID'] = record_hash
+
+        #--record type is not mandatory, but should be PERSON or ORGANIATION
+
+        # json_data['RECORD_TYPE'] = 'PERSON' if raw_data['type'] == 'individual' else 'ORGANIZATION'  #-commented out as un-reliable
+        json_data['RECORD_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON'
 
         #--column mappings
 
@@ -50,15 +67,15 @@ class mapper():
         #      1003 (1)
         #      1004 (1)
         #      1005 (1)
-        #json_data['uniqueid'] = raw_data['uniqueid']  #--already mapped as record_id
+        # already mapped as record_id
+        # json_data['uniqueid'] = raw_data['uniqueid']
 
         # columnName: type
         # 100.0 populated, 22.22 unique
         #      company (5)
         #      individual (4)
-        # json_data['type'] = raw_data['type']  #--use our calculation here instead
-        json_data['RECORD_TYPE'] = 'ORGANIZATION' if is_organization else 'PERSON' #--set the entity type
-
+        # already mapped as record_type
+        # json_data['type'] = raw_data['type']
 
         # columnName: name
         # 88.89 populated, 100.0 unique
@@ -67,16 +84,15 @@ class mapper():
         #      General Hospital (1)
         #      Mary Smith (1)
         #      Peter  Anderson (1)
-        #json_data['name'] = raw_data['name'] #--commented out in favor of ...
-        if is_organization:
-            json_data['NAME_ORG'] = raw_data['name'] #--name_org if an organization
+        if json_data['RECORD_TYPE'] == 'PERSON':
+            json_data['PRIMARY_NAME_FULL'] = raw_data['name']
         else:
-            json_data['NAME_FULL'] = raw_data['name'] #--name_full if not
+            json_data['PRIMARY_NAME_ORG'] = raw_data['name']
 
         # columnName: gender
         # 100.0 populated, 11.11 unique
         #      u (9)
-        #json_data['gender'] = raw_data['gender'] #--commented out as no value
+        json_data['GENDER'] = raw_data['gender']
 
         # columnName: dob
         # 22.22 populated, 100.0 unique
@@ -90,8 +106,11 @@ class mapper():
         #      666-66-6666 (1)
         json_data['SSN_NUMBER'] = raw_data['ssn']
 
-        if is_organization:
-            json_data['ADDR_TYPE'] = 'BUSINESS' #--added if an organization
+        #--set the address type to business if an organization
+        if json_data['RECORD_TYPE'] == 'ORGANIZATION':
+            json_data['ADDR_TYPE'] = 'BUSINESS'
+        else:
+            json_data['ADDR_TYPE'] = 'PRIMARY'
 
         # columnName: addr1
         # 88.89 populated, 100.0 unique
@@ -128,13 +147,13 @@ class mapper():
         #      3/3/03 (1)
         #      4/4/04 (1)
         #      5/5/05 (1)
-        json_data['important_date'] = raw_data['create_date']
+        json_data['create_date'] = raw_data['create_date']
 
         # columnName: status
         # 88.89 populated, 25.0 unique
         #      Active (6)
         #      Inactive (2)
-        json_data['important_status'] = raw_data['status']
+        json_data['status'] = raw_data['status']
 
         # columnName: value
         # 88.89 populated, 100.0 unique
@@ -143,9 +162,10 @@ class mapper():
         #      3000 (1)
         #      4000 (1)
         #      5000 (1)
-        #json_data['value'] = raw_data['value']
+        json_data['value'] = raw_data['value']
 
-        #--capture the stats
+        #--remove empty attributes and capture the stats
+        json_data = self.remove_empty_tags(json_data)
         self.capture_mapped_stats(json_data)
 
         return json_data
@@ -173,30 +193,30 @@ class mapper():
             return ''
         return new_value
 
+    #-----------------------------------
+    def compute_record_hash(self, target_dict, attr_list = None):
+        if attr_list:
+            string_to_hash = ''
+            for attr_name in sorted(attr_list):
+                string_to_hash += (' '.join(str(target_dict[attr_name]).split()).upper() if attr_name in target_dict and target_dict[attr_name] else '') + '|'
+        else:           
+            string_to_hash = json.dumps(target_dict, sort_keys=True)
+        return hashlib.md5(bytes(string_to_hash, 'utf-8')).hexdigest()
+
     #----------------------------------------
-    def format_dob(self, raw_date):
-        try: new_date = dateparse(raw_date)
-        except: return ''
-
-        #--correct for prior century dates
-        if new_date.year > datetime.now().year:
-            new_date = datetime(new_date.year - 100, new_date.month, new_date.day)
-
-        if len(raw_date) == 4:
-            output_format = '%Y'
-        elif len(raw_date) in (5,6):
-            output_format = '%m-%d'
-        elif len(raw_date) in (7,8):
-            output_format = '%Y-%m'
-        else:
-            output_format = '%Y-%m-%d'
-
-        return datetime.strftime(new_date, output_format)
+    def format_date(self, raw_date):
+        try: 
+            return datetime.strftime(dateparse(raw_date), '%Y-%m-%d')
+        except: 
+            self.update_stat('!INFO', 'BAD_DATE', raw_date)
+            return ''
 
     #-----------------------------------
     def is_organization(self, raw_name, raw_dob, raw_ssn):
+        #--if a dob or ssn was supplied its a person
         if raw_dob or raw_ssn or not raw_name:
             return False
+        #--if organizational tokens exist, its an organization 
         prior_tokens = []
         for token in raw_name.replace('.',' ').replace(',',' ').replace('-',' ').upper().split():
             if token in self.variant_data['ORGANIZATION_TOKENS']:
@@ -207,6 +227,19 @@ class mapper():
                 return True
             prior_tokens.append(token)
         return False
+
+    #----------------------------------------
+    def remove_empty_tags(self, d):
+        if isinstance(d, dict):
+            for  k, v in list(d.items()):
+                if v is None or len(str(v).strip()) == 0:
+                    del d[k]
+                else:
+                    self.remove_empty_tags(v)
+        if isinstance(d, list):
+            for v in d:
+                self.remove_empty_tags(v)
+        return d
 
     #----------------------------------------
     def update_stat(self, cat1, cat2, example=None):
@@ -283,7 +316,7 @@ if __name__ == "__main__":
     for input_row in csv.DictReader(input_file_handle, dialect=csv_dialect):
         input_row_count += 1
 
-        json_data = mapper.map(input_row)
+        json_data = mapper.map(input_row, input_row_count)
         if json_data:
             output_file_handle.write(json.dumps(json_data) + '\n')
             output_row_count += 1
