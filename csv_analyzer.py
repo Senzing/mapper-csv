@@ -1,3 +1,4 @@
+#! /usr/bin/env python3
 import os
 import sys
 import argparse
@@ -8,11 +9,6 @@ from datetime import datetime, timedelta
 import json
 import csv
 import glob
-from importlib.machinery import SourceFileLoader
-
-try: from csv_functions import csv_functions
-except: 
-    csv_functions = False
 
 #----------------------------------------
 def pause(question='PRESS ENTER TO CONTINUE ...'):
@@ -358,7 +354,7 @@ def analyzeFile():
     if pythonModuleFile:
 
         codeLines = []
-        with open('python_template.py', 'r') as f:
+        with open(templateFile, 'r') as f:
             for line in f:
 
                 if line.strip() == "input_file = '<input_file_name>'":
@@ -476,9 +472,11 @@ if __name__ == "__main__":
             print('\nAborted, backup failed!\n')
             sys.exit(1)
 
-    if csv_functions:
-        csv_functions = csv_functions()
-        if not csv_functions.initialized:
+    #--make sure the template file exists
+    if pythonModuleFile:
+        templateFile = os.path.dirname(__file__) + os.path.sep + 'python_template.py'
+        if not os.path.exists(templateFile):
+            print(f'\nCannot find {templateFile}\n')
             sys.exit(1)
 
     result = analyzeFile()
