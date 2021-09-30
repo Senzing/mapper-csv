@@ -39,7 +39,7 @@ class mapper():
         #--the record_id should be unique, remove this mapping if there is not one 
         json_data['RECORD_ID'] = '<remove_or_supply>'
 
-        #--record type is not mandatory, but should be PERSON or ORGANIATION
+        #--record type is not mandatory, but should be PERSON or ORGANIZATION
         #--json_data['RECORD_TYPE'] = 'PERSON'
 
         #--column mappings
