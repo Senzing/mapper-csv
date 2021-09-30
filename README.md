@@ -538,12 +538,8 @@ You will want to review the statistics it produces and make sure it makes sense 
 
 ### Loading into Senzing
 
-*Please be sure first add any new configurations to Senzing!  This might include new data sources, entity types, features or attributes!.  See the G2ConfigTool.py and readme on the /opt/senzing/g2/python subdirectory.*
+*You must first update the Senzing configuration with any new data source codes, features or attributes you specified in your mapper.  These can be added via 
+the G2ConfigTool python script provided in the install.*
 
-If you use the G2Loader program to load your data, from the /opt/senzing/g2/python directory ...
-
-```console
-python3 G2Loader.py -f <path-to>/test_set1.json
-```
-
-Please note you could also use the stream loader here https://github.com/Senzing/stream-loader
+The JSON files created by your mapper can be loaded into Senzing in various ways.  If you have a docker or AWS setup, you can load them via the stream-producer or if you
+have a bare metal install you can load them via the G2Loader python script provided in the install.
