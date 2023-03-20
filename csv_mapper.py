@@ -359,10 +359,10 @@ def processFile():
                             continue
 
                     dataSource = getValue(rowData, mappingDoc['outputs'][i]['data_source'])
-                    if 'entity_type' in mappingDoc['outputs'][i]:
-                        entityType = getValue(rowData, mappingDoc['outputs'][i]['entity_type'])
+                    if 'record_type' in mappingDoc['outputs'][i]:
+                        recordType = getValue(rowData, mappingDoc['outputs'][i]['record_type'])
                     else:
-                        entityType = dataSource
+                        recordType = dataSource
 
                     entityKey = None
                     recordID = None
@@ -395,7 +395,7 @@ def processFile():
                     for subList in subListValues:
                         jsonData[subList] = [subListValues[subList]]
                     jsonData['DATA_SOURCE'] = dataSource
-                    jsonData['ENTITY_TYPE'] = entityType
+                    jsonData['RECORD_TYPE'] = recordType
                     if entityKey:
                         jsonData['ENTITY_KEY'] = entityKey
                     elif recordID:
