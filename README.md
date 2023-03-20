@@ -392,7 +392,7 @@ Just like calculations above, the filter is a single line python expression refe
     {
         "filter": "not rowData['name']",      <-- add this filter to remove the blank record in the test file 
         "data_source": "TEST",                <-- use "TEST" here
-        "entity_type": "GENERIC",             <-- keep the default "GENERIC" here
+        "record_type": "GENERIC",             <-- keep the default "GENERIC" here
         "record_id": "%(uniqueid)s",          <-- use uniqueid here as it the unique ID for each record in the file
         ...
 ```
