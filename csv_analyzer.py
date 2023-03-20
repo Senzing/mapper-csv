@@ -336,7 +336,7 @@ def analyzeFile():
             mappingDoc['outputs'] = []
             outputDoc = {}
             outputDoc['data_source'] = '<supply>'
-            outputDoc['entity_type'] = 'GENERIC'
+            outputDoc['record_type'] = 'GENERIC'
             outputDoc['record_id'] = '<remove_or_supply>'
             outputDoc['attributes'] = possibleMappings
             mappingDoc['outputs'].append(outputDoc)
