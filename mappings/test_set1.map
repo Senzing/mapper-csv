@@ -27,7 +27,7 @@
         {
             "filter": "not rowData['name']", 
             "data_source": "TEST",
-            "entity_type": "GENERIC",
+            "record_type": "GENERIC",
             "record_id": "%(uniqueid)s",
             "attributes": [
                 {
