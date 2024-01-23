@@ -38,6 +38,7 @@ disable=
     unused-argument,
     unused-import,
     unused-variable,
+    used-before-assignment,
     useless-return,
     wrong-import-order,
 good-names=
