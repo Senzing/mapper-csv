@@ -10,15 +10,10 @@ import json
 import csv
 import glob
 
-#----------------------------------------
-def pause(question='PRESS ENTER TO CONTINUE ...'):
-    """ pause for debug purposes """
-    global shutDown
-    try: response = input(question)
-    except KeyboardInterrupt:
-        response = None
-        shutDown = True
-    return response
+try:
+    import pandas as pd
+except: 
+    pd = False
 
 #----------------------------------------
 def signal_handler(signal, frame):
@@ -40,7 +35,8 @@ def getNextRow(fileInfo):
             print('Shutdown due to too many errors')
             break
              
-        try: line = next(fileInfo['reader'])
+        try: 
+            line = next(fileInfo['reader'])
         except StopIteration:
             break
         except: 
@@ -51,12 +47,8 @@ def getNextRow(fileInfo):
         fileInfo['rowCnt'] += 1
         if line: #--skip empty lines
 
-            if fileInfo['fieldDelimiter'] == 'JSON':
-                csv_data = json.loads(line)
-                for attr in csv_data:
-                    if type(csv_data[attr]) not in (list, dict) and attr not in fileInfo['header']:
-                        fileInfo['header'].append(attr)
-
+            if fileInfo['fieldDelimiter'] in ('JSON', 'PARQUET'):
+                csv_data = json.loads(line) if fileInfo['fieldDelimiter'] == 'JSON' else line
                 return fileInfo, csv_data
 
             #--csv reader will return a list (mult-char delimiter must be manually split)
@@ -66,17 +58,17 @@ def getNextRow(fileInfo):
                 row = [removeQuoteChar(x.strip()) for x in line.split(fileInfo['fieldDelimiter'])]
 
             #--turn into a dictionary if there is a header
-            if 'header' in fileInfo:
+            if 'columnHeaders' in fileInfo:
 
                 #--column mismatch
-                if len(row) != len(fileInfo['header']):
-                    print(' row %s has %s columns, expected %s' % (fileInfo['rowCnt'], len(row), len(fileInfo['header'])))
+                if len(row) != len(fileInfo['columnHeaders']):
+                    print(' row %s has %s columns, expected %s' % (fileInfo['rowCnt'], len(row), len(fileInfo['columnHeaders'])))
                     fileInfo['skipCnt'] += 1
                     errCnt += 1
                     continue
 
                 #--is it the header row
-                elif str(row[0]).upper() == fileInfo['header'][0].upper() and str(row[len(row)-1]).upper() == fileInfo['header'][len(fileInfo['header'])-1].upper():
+                elif str(row[0]).upper() == fileInfo['columnHeaders'][0].upper() and str(row[len(row)-1]).upper() == fileInfo['columnHeaders'][len(fileInfo['columnHeaders'])-1].upper():
                     fileInfo['skipCnt'] += 1
                     if fileInfo['rowCnt'] != 1:
                         print(' row %s contains the header' % fileInfo['rowCnt'])
@@ -85,7 +77,7 @@ def getNextRow(fileInfo):
 
                 #--return a good row
                 else:
-                    csv_data = dict(zip(fileInfo['header'], [str(x).strip() for x in row]))
+                    csv_data = dict(zip(fileInfo['columnHeaders'], [str(x).strip() for x in row]))
 
             else: #--if not just return what should be the header row
                 fileInfo['skipCnt'] += 1
@@ -108,37 +100,31 @@ def removeQuoteChar(s):
 def analyzeFile():
     """ analyze a csv file """
     global shutDown
-    statPack = {}
+    statPack = {'counts': {}, 'values': {}}
     totalRowCnt = 0
 
     #--get parameters from a mapping file
     mappingDoc = {'input': {}}
     if mappingFileName and os.path.exists(mappingFileName): 
-        try: mappingDoc = json.load(open(mappingFileName, 'r'))
+        try: 
+            mappingDoc = json.load(open(mappingFileName, 'r'))
         except ValueError as err:
-            print('')
-            print('mapping file error: %s in %s' % (err, mappingFileName))
+            print(f"mapping file error: {err} in {mappingFileName}")
             return 1
 
     #--override mapping document with parameters
-    if inputFileName or 'inputFileName' not in mappingDoc['input']:
-        mappingDoc['input']['inputFileName'] = inputFileName
-    if fieldDelimiter or 'fieldDelimiter' not in mappingDoc['input']:
-        mappingDoc['input']['fieldDelimiter'] = fieldDelimiter
-    if fileEncoding or 'fileEncoding' not in mappingDoc['input']:
-        mappingDoc['input']['fileEncoding'] = fileEncoding
-    if 'columnHeaders' not in mappingDoc['input']:
-        mappingDoc['input']['columnHeaders'] = []
+    mappingDoc['input']['inputFileName'] = inputFileName if inputFileName else mappingDoc['input'].get('inputFileName')
+    mappingDoc['input']['fieldDelimiter'] = fieldDelimiter if fieldDelimiter else mappingDoc['input'].get('fieldDelimiter', ',')
+    mappingDoc['input']['fileEncoding'] = fileEncoding if fileEncoding else mappingDoc['input'].get('fileEncoding')
+    mappingDoc['input']['columnHeaders'] = mappingDoc['input'].get('columnHeaders', [])
 
     #--get the input file
     if not mappingDoc['input']['inputFileName']:
-        print('')
-        print('no input file supplied')
+        print('\nNo input file supplied')
         return 1
     fileList = glob.glob(mappingDoc['input']['inputFileName'])
     if len(fileList) == 0:
-        print('')
-        print('%s not found' % inputFileName)
+        print(f"{inputFileName} not found")
         return 1
 
     #--need a test record for python module
@@ -146,109 +132,84 @@ def analyzeFile():
 
     #--for each input file
     for fileName in fileList:
-        print('')
-        print('Analyzing %s ...' % fileName)
+        print('\nAnalyzing %s ...' % fileName)
         currentFile = {}
         currentFile['name'] = fileName
         currentFile['rowCnt'] = 0
         currentFile['skipCnt'] = 0
+        currentFile['fieldDelimiter'] = mappingDoc['input']['fieldDelimiter']
 
         #--open the file
-        if mappingDoc['input']['fileEncoding']:
-            currentFile['fileEncoding'] = mappingDoc['input']['fileEncoding']
-            currentFile['handle'] = open(fileName, 'r', encoding=mappingDoc['input']['fileEncoding'])
+        if currentFile['fieldDelimiter'] == 'PARQUET':
+            currentFile['handle'] = pd.read_parquet(fileName, engine='auto')
+            currentFile['reader'] = iter(currentFile['handle'].to_dict(orient="records"))
         else:
-            currentFile['handle'] = open(fileName, 'r')
+            if mappingDoc['input']['fileEncoding']:
+                currentFile['fileEncoding'] = mappingDoc['input']['fileEncoding']
+                currentFile['handle'] = open(fileName, 'r', encoding=mappingDoc['input']['fileEncoding'])
+            else:
+                currentFile['handle'] = open(fileName, 'r')
 
-        #--set the dialect
-        currentFile['fieldDelimiter'] = mappingDoc['input']['fieldDelimiter']
-        if not mappingDoc['input']['fieldDelimiter']:
-            sniffer = csv.Sniffer().sniff(currentFile['handle'].readline(), delimiters='|,\t')
-            currentFile['handle'].seek(0)
-            currentFile['fieldDelimiter'] = sniffer.delimiter
-            mappingDoc['input']['fieldDelimiter'] = sniffer.delimiter
+            if currentFile['fieldDelimiter'] == 'JSON':
+                currentFile['reader'] = currentFile['handle']
+            else:
+                if not currentFile['fieldDelimiter']:
+                    sniffer = csv.Sniffer().sniff(currentFile['handle'].readline(), delimiters='|,\t')
+                    currentFile['handle'].seek(0)
+                    currentFile['fieldDelimiter'] = sniffer.delimiter
+                    mappingDoc['input']['fieldDelimiter'] = sniffer.delimiter
 
-        if mappingDoc['input']['fieldDelimiter'].lower() in ('csv', 'comma', ','):
-            currentFile['csvDialect'] = 'excel'
-        elif mappingDoc['input']['fieldDelimiter'].lower() in ('tab', 'tsv', '\t'):
-            currentFile['csvDialect'] = 'excel-tab'
-        elif mappingDoc['input']['fieldDelimiter'].lower() in ('pipe', '|'):
-            csv.register_dialect('pipe', delimiter = '|', quotechar = '"')
-            currentFile['csvDialect'] = 'pipe'
-        elif len(mappingDoc['input']['fieldDelimiter']) == 1:
-            csv.register_dialect('other', delimiter = delimiter, quotechar = '"')
-            currentFile['csvDialect'] = 'other'
-        elif len(mappingDoc['input']['fieldDelimiter']) > 1:
-            currentFile['csvDialect'] = 'multi'
-        else:
-            currentFile['csvDialect'] = 'excel'
+                if currentFile['fieldDelimiter'].lower() in ('csv', 'comma', ','):
+                    currentFile['csvDialect'] = 'excel'
+                elif currentFile['fieldDelimiter'].lower() in ('tab', 'tsv', '\t'):
+                    currentFile['csvDialect'] = 'excel-tab'
+                elif currentFile['fieldDelimiter'].lower() in ('pipe', '|'):
+                    csv.register_dialect('pipe', delimiter = '|', quotechar = '"')
+                    currentFile['csvDialect'] = 'pipe'
+                elif len(currentFile['fieldDelimiter']) == 1:
+                    csv.register_dialect('other', delimiter = delimiter, quotechar = '"')
+                    currentFile['csvDialect'] = 'other'
+                elif len(currentFile['fieldDelimiter']) > 1:
+                    currentFile['csvDialect'] = 'multi'
+                else:
+                    currentFile['csvDialect'] = 'excel'
 
-        mappingDoc['input']['csvDialect'] = currentFile['csvDialect']
+                mappingDoc['input']['csvDialect'] = currentFile['csvDialect']
 
-        #--set the reader (csv cannot be used for multi-char delimiters)
-        if currentFile['csvDialect'] != 'multi':
-            currentFile['reader'] = csv.reader(currentFile['handle'], dialect=currentFile['csvDialect'])
-        else:
-            currentFile['reader'] = currentFile['handle']
+            #--set the reader (csv cannot be used for multi-char delimiters)
+            if currentFile['csvDialect'] != 'multi':
+                currentFile['reader'] = csv.reader(currentFile['handle'], dialect=currentFile['csvDialect'])
+            else:
+                currentFile['reader'] = currentFile['handle']
 
-        #--get the current file header row and use it if not one already
-        currentFile, currentHeaders = getNextRow(currentFile)
-        if not mappingDoc['input']['columnHeaders']:
-            mappingDoc['input']['columnHeaders'] = [str(x).replace(' ', '_') for x in currentHeaders]
-        currentFile['header'] = mappingDoc['input']['columnHeaders']
-
-        #--initialize the statpack first time through
-        if not statPack:
-            colNum = 0
-            errCnt = 0
-            for columnName in mappingDoc['input']['columnHeaders']:
-                colNum += 1
-                if not columnName:
-                    print(' column %s header is blank!' % colNum)
-                    errCnt += 1
-                if columnName not in statPack: 
-                    statPack[columnName] = {'null': 0}
-            if errCnt:
-                print()
-                print('Row 1 does not contain a valid column header!')
-                currentFile['handle'].close
-                return 1
+            #--get the current file header row and use it if not one already
+            currentFile, currentHeaders = getNextRow(currentFile)
+            if not mappingDoc['input']['columnHeaders']:
+                print(json.dumps(currentHeaders, indent=4))
+                mappingDoc['input']['columnHeaders'] = [str(x).replace(' ', '_') for x in currentHeaders]
+        currentFile['columnHeaders'] = mappingDoc['input']['columnHeaders']
 
         #--process the rows in the input file
         currentFile, rowData = getNextRow(currentFile)
         while rowData:
             totalRowCnt += 1
-
             if not testRecord:
                 testRecord = rowData
 
-            if pythonMapperClass:
-                rowData = pythonMapperClass.process(rowData)
-                print(rowData)
-
-            #--for each column
-            for columnName in currentFile['header']:
-
-                if columnName not in rowData: #--may not be if json
-                    statPack[columnName]['null'] += 1
-                    continue 
-                if columnName not in statPack: #--may not be if json
-                    statPack[columnName] = {'null': 0}
-                if columnName not in mappingDoc['input']['columnHeaders']:
-                    mappingDoc['input']['columnHeaders'].append(columnName) #--may not be if json
-
-                columnValue = str(rowData[columnName]).strip()
-                if not columnValue or columnValue.strip().upper() in ('NONE', 'NULL', '\\N'):
-                    statPack[columnName]['null'] += 1
+            for columnName in rowData:
+                if columnName not in statPack['counts']:
+                    statPack['counts'][columnName] = 0
+                    statPack['values'][columnName] = {}
+                if not rowData[columnName]:
                     continue
-                
-                if columnValue in statPack[columnName]:
-                    statPack[columnName][columnValue] += 1
-                else:
-                    statPack[columnName][columnValue] = 1
-                
-            currentFile, rowData = getNextRow(currentFile)
 
+                statPack['counts'][columnName] += 1
+                if rowData[columnName] not in statPack['values'][columnName]:
+                    statPack['values'][columnName][rowData[columnName]] = 1
+                else:
+                    statPack['values'][columnName][rowData[columnName]] += 1
+
+            currentFile, rowData = getNextRow(currentFile)
 
             #--break conditions
             if shutDown:
@@ -259,7 +220,9 @@ def analyzeFile():
             if currentFile['rowCnt'] % 10000 == 0:
                 print(' %s records processed' % currentFile['rowCnt'])
 
-        currentFile['handle'].close()
+
+        if currentFile['fieldDelimiter'] != 'PARQUET':
+            currentFile['handle'].close()
         if shutDown:
             break
         else:
@@ -267,12 +230,12 @@ def analyzeFile():
     
     #--export the analysis    
     if outputFileName:
-        try: outputFileHandle = open(outputFileName, 'w', newline='')
+        try: 
+            outputFileHandle = open(outputFileName, 'w', newline='', encoding='utf-8')
+            outputFileWriter = csv.writer(outputFileHandle, dialect=csv.excel, quoting=csv.QUOTE_ALL)
         except IOError as err: 
-            print()
-            print('Could not write to %s' % outputFileName)
+            print(f"Could not write to {outputFileName}")
             return 1
-        outputFileWriter = csv.writer(outputFileHandle, dialect=csv.excel, quoting=csv.QUOTE_ALL)
             
     bestRecordID = '<remove-or-supply>'
     possibleMappings = []    
@@ -282,10 +245,10 @@ def analyzeFile():
     else:
         print(columnHeaders)
 
-    for columnName in mappingDoc['input']['columnHeaders']:
-        recordCount = totalRowCnt - statPack[columnName]['null']
+    for columnName in statPack['counts']:
+        recordCount = statPack['counts'][columnName]
         percentPopulated = round(recordCount / totalRowCnt * 100, 2)
-        uniqueCount = len(statPack[columnName]) - 1
+        uniqueCount = len(statPack['values'][columnName])
         uniquePercent = round(uniqueCount / recordCount * 100, 2) if recordCount else 0
 
         #--first 100% unique field is recordID
@@ -293,11 +256,10 @@ def analyzeFile():
             bestRecordID = columnName
 
         topValue = []
-        for value in sorted(statPack[columnName].items(), key=lambda x: x[1], reverse=True):
-            if value[0] != 'null':
-                topValue.append('%s (%s)' % value)
-                if len(topValue) == 5:
-                    break
+        for value in sorted(statPack['values'][columnName].items(), key=lambda x: x[1], reverse=True):
+            topValue.append('%s (%s)' % value)
+            if len(topValue) == 5:
+                break
         while len(topValue) < 5:
             topValue.append('')
 
@@ -360,7 +322,7 @@ def analyzeFile():
                 if line.strip() == "input_file = '<input_file_name>'":
                     codeLines.append(line.replace('<input_file_name>', inputFileName))
 
-                elif line.strip() == "csv_dialect = '<dialect>'":
+                elif line.strip() == "csv_dialect = '<dialect>'" and mappingDoc['input'].get('csvDialect'):
                     if mappingDoc['input']['csvDialect'] == 'pipe':
                         registerDialect = "csv.register_dialect('pipe', delimiter = '|')"
                     elif mappingDoc['input']['csvDialect'] == 'other':
@@ -387,7 +349,7 @@ def analyzeFile():
                         codeLines.append("        # %s populated, %s unique\n" % (columnMapping['statistics']['populated%'], columnMapping['statistics']['unique%']))
                         for item in columnMapping['statistics']['top5values']:
                             codeLines.append("        #      %s\n" % item)
-                        codeLines.append("        json_data['%s'] = raw_data['%s']\n" % (columnMapping['statistics']['columnName'], columnMapping['statistics']['columnName']))
+                        codeLines.append("        json_data['%s'] = raw_data.get('%s')\n" % (columnMapping['statistics']['columnName'], columnMapping['statistics']['columnName']))
 
                 elif line.strip().startswith('raw_data = {'):
                     if not testRecord:
@@ -436,14 +398,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--inputFileName', dest='inputFileName', help='the name of a csv input file')
-    parser.add_argument('-d', '--fieldDelimiter', dest='fieldDelimiter', help='delimiter character')
+    parser.add_argument('-d', '--fieldDelimiter', dest='fieldDelimiter', help='csv delimiter character or "json" or "parquet"')
     parser.add_argument('-e', '--fileEncoding', dest='fileEncoding', help='file encoding')
     parser.add_argument('-o', '--outputFileName', dest='outputFileName', help='the name of the output file')
     parser.add_argument('-m', '--mappingFileName', dest='mappingFileName', help='optional name of a mapping file to generate')
     parser.add_argument('-p', '--pythonModuleFile', dest='pythonModuleFile', help='optional name of a python module file to generate')
     args = parser.parse_args()
     inputFileName = args.inputFileName
-    fieldDelimiter = args.fieldDelimiter
+    fieldDelimiter = args.fieldDelimiter.upper() if args.fieldDelimiter else None
     fileEncoding = args.fileEncoding
     outputFileName = args.outputFileName
     mappingFileName = args.mappingFileName
@@ -453,16 +415,19 @@ if __name__ == "__main__":
         print('\nAn input file name is required\n')
         sys.exit(1)
         
+    if not fieldDelimiter == 'PARQUET' and not pd:
+        print('\nPandas must be installed to analyze parquet files, try: pip install pandas\n')
+        sys.exit(1)
+
     if mappingFileName and os.path.exists(mappingFileName):
         response = input('\nMapping file already exists!!, overwrite it? (Y/N) ')
-        if response[0:1].upper() != 'Y':
+        if response.upper.startswith('Y'):
             mappingFileName = None
-            print('\nmapping file will be preserved!')
+            print('\nMapping file will be preserved!')
         elif not fileBackup(mappingFileName):
             print('\nAborted, backup failed!\n')
             sys.exit(1)
 
-    pythonMapperClass = None
     if pythonModuleFile and os.path.exists(pythonModuleFile):
         response = input('\nPython module already exists!, overwrite it? (Y/N) ')
         if response[0:1].upper() != 'Y':
