@@ -433,7 +433,7 @@ def is_empty(nam, val):
     return len(str(val).strip()) == 0
 
 def is_iterable(val):
-    if isinstance(val, np.ndarray) or isinstance(val, list):
+    if isinstance(val, (np.ndarray, list)):
         return True
     return False
 
