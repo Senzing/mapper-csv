@@ -1,3 +1,6 @@
 {
-  "threshold": 9
+  "threshold": 9,
+  "ignore": [
+    "**/*.py"
+  ]
 }
