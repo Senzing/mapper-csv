@@ -70,7 +70,7 @@ python csv_analyzer.py \
   -p mappings/test_set1.py
 ```
 
-or to create a mapping file for use with the csv_mapper.py _(does not require knowledge of python for simple mappings)_
+or to create a mapping file for use with the csv*mapper.py *(does not require knowledge of python for simple mappings)\_
 
 ```console
 python csv_analyzer.py \
@@ -624,10 +624,10 @@ have a bare metal install you can load them via the G2Loader python script provi
 
 [Advanced mapping functions]: #Advanced-mapping-functions
 [Calculations section]: #calculations-section
-[csv_analyzer.py]: csv_analyzer.py
-[csv_functions.json]: csv_functions.json
-[csv_functions.py]: csv_functions.py
-[csv_mapper.py]: csv_mapper.py
+[csv_analyzer.py]: src/csv_analyzer.py
+[csv_functions.json]: src/csv_functions.json
+[csv_functions.py]: src/csv_functions.py
+[csv_mapper.py]: src/csv_mapper.py
 [Generic entity specification]: https://senzing.zendesk.com/hc/en-us/articles/231925448-Generic-Entity-Specification-JSON-CSV-Mapping
 [Input section]: #input-section
 [input/test_set1.csv]: input/test_set1.csv
@@ -640,7 +640,7 @@ have a bare metal install you can load them via the G2Loader python script provi
 [output/test_set1.json]: output/test_set1.json
 [Prerequisites]: #prerequisites
 [Python module tutorial]: #python-module-tutorial
-[python_template.py]: python_template.py
+[python_template.py]: src/python_template.py
 [Review the statistics]: #review-the-statistics
 [Run the analyzer]: #run-the-analyzer
 [Run the mapper with a mapping file]: #run-the-mapper-with-a-mapping-file
