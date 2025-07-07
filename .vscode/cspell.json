@@ -12,22 +12,29 @@
     "DSRC",
     "elif",
     "ICLA",
+    "isort",
+    "kwargs",
     "mult",
     "mypy",
     "newcolumn",
     "probablepeople",
     "pydev",
     "pylint",
+    "pytest",
     "pythonic",
     "Senzing",
+    "setuptools",
     "shellcheck",
     "stackoverflow",
     "statpack",
-    "subrecord"
+    "subrecord",
+    "venv"
   ],
   "ignorePaths": [
     ".git/**",
     ".mypy_cache/**",
-    "csv_functions.json"
+    "csv_functions.json",
+    "development-requirements.txt",
+    "documentation-requirements.txt"
   ]
 }
