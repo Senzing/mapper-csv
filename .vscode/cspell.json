@@ -1,17 +1,16 @@
 {
-  // Version of the setting file.  Always 0.2
   "version": "0.2",
-  // language - current active spelling language
   "language": "en",
-  // words - list of words to be always considered correct
   "words": [
-    "analysing",
     "CCLA",
     "CODEOWNER",
-    "dateutil",
     "DSRC",
-    "elif",
     "ICLA",
+    "Senzing",
+    "analysing",
+    "dateutil",
+    "elif",
+    "esbenp",
     "isort",
     "kwargs",
     "mult",
@@ -22,7 +21,6 @@
     "pylint",
     "pytest",
     "pythonic",
-    "Senzing",
     "setuptools",
     "shellcheck",
     "stackoverflow",
