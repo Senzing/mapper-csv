@@ -20,6 +20,7 @@
     "isort",
     "jquery",
     "jsmath",
+    "kernelsam",
     "kwargs",
     "mult",
     "mypy",
